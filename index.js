@@ -1,11 +1,20 @@
-import express from "express";
+import app from "./app.js";
+import dotenv from "dotenv";
+import { checkDatabaseConnection } from "./config/db.config.js";
 
-const app = express();
+dotenv.config();
+const PORT = Number(process.env.PORT) || 3000;
 
-app.get("/health", (req, res) => {
-  res.json({ message: "good" });
-});
+const startServer = async () => {
+  try {
+    await checkDatabaseConnection();
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running at http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to connect database:", error.message);
+    process.exit(1);
+  }
+};
 
-app.listen(3000, () => {
-  console.log("http://localhost:3000");
-});
+startServer();
