@@ -1,10 +1,14 @@
 import { userService } from "./user.service.js";
 import { sendError, sendSuccess } from "../../../common/response.js";
 
+const UUID_V4_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const getAdminUserById = async (req, res, next) => {
   try {
-    const userId = Number(req.params.id);
-    if (!Number.isInteger(userId) || userId <= 0) {
+    const userId = String(req.params.id || "").trim();
+
+    if (!UUID_V4_REGEX.test(userId)) {
       return sendError(res, {
         status: 400,
         message: "Invalid user id",
@@ -19,8 +23,11 @@ export const getAdminUserById = async (req, res, next) => {
   }
 };
 
-export const getAllAdminUser = async (req, res) => {
-  const result = await userService.getAll();
-
-  return sendSuccess(res, result);
+export const getAllAdminUser = async (req, res, next) => {
+  try {
+    const result = await userService.getAll();
+    return sendSuccess(res, result);
+  } catch (error) {
+    return next(error);
+  }
 };

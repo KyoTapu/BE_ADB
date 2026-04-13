@@ -17,9 +17,11 @@ class UserService {
 
   async getAll() {
     const data = await userRepository.findAll();
+
     if (!data) {
       throw new Error("can not find users");
     }
+    console.log("🚀 ~ UserService ~ getAll ~ data:", data);
     return toUserListResponse(data);
   }
 }

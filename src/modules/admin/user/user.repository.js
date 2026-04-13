@@ -1,35 +1,55 @@
-class UserRepository {
-  constructor() {
-    this.users = [
-      {
-        id: 1,
-        email: "admin1@example.com",
-        full_name: "Admin One",
-        role: "admin",
-        status: "active",
-        created_at: "2026-01-10T08:00:00.000Z",
-        updated_at: "2026-04-01T09:00:00.000Z",
-      },
-      {
-        id: 2,
-        email: "admin2@example.com",
-        full_name: "Admin Two",
-        role: "admin",
-        status: "inactive",
-        created_at: "2026-02-12T10:00:00.000Z",
-        updated_at: "2026-04-05T10:15:00.000Z",
-      },
-    ];
-  }
+import { pool } from "../../../../config/db.config.js";
 
-  async findById(id) {
-    // TODO: Replace with real DB query (SELECT ... WHERE id = ?).
-    return this.users.find((user) => user.id === id) ?? null;
-  }
+export const findById = async (id) => {
+  const query = `
+    SELECT
+      user_id::text AS id,
+      full_name,
+      email,
+      phone,
+      is_active,
+      is_banned,
+      CASE
+        WHEN is_banned = true THEN 'banned'
+        WHEN is_active = false THEN 'inactive'
+        ELSE 'active'
+      END AS status,
+      created_at,
+      created_at AS updated_at
+    FROM public."User"
+    WHERE user_id::text = $1
+    LIMIT 1
+  `;
 
-  async findAll() {
-    return this.users;
-  }
-}
+  const { rows } = await pool.query(query, [id]);
+  return rows[0] || null;
+};
 
-export const userRepository = new UserRepository();
+export const findAll = async () => {
+  const query = `
+    SELECT
+      user_id::text AS id,
+      full_name,
+      email,
+      phone,
+      is_active,
+      is_banned,
+      CASE
+        WHEN is_banned = true THEN 'banned'
+        WHEN is_active = false THEN 'inactive'
+        ELSE 'active'
+      END AS status,
+      created_at,
+      created_at AS updated_at
+    FROM public."User"
+    ORDER BY created_at DESC
+  `;
+
+  const { rows } = await pool.query(query);
+  return rows;
+};
+
+export const userRepository = {
+  findById,
+  findAll,
+};

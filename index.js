@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { checkDatabaseConnection } from "./config/db.config.js";
 
 dotenv.config();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT)
 
 const startServer = async () => {
   try {
