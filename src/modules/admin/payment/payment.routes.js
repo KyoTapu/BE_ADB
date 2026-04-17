@@ -1,8 +1,12 @@
 import { Router } from "express";
-import { getPaymentStatus } from "./payment.controller.js";
+import { getHistory, createManual } from "./payment.controller.js";
+import { authenticate, authorize } from "../../../middlewares/auth.middleware.js";
 
 const paymentRouter = Router();
 
-paymentRouter.get("/health", getPaymentStatus);
+paymentRouter.use(authenticate, authorize('admin', 'staff'));
+
+paymentRouter.get("/history", getHistory);
+paymentRouter.post("/manual", createManual);
 
 export default paymentRouter;

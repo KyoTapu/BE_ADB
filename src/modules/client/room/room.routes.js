@@ -1,8 +1,11 @@
 import { Router } from "express";
-import { getRoomStatus } from "./room.controller.js";
+import { generatePayment, paymentWebhook } from "./payment.controller.js";
+import { authenticate } from "../../middlewares/auth.middleware.js";
 
-const roomRouter = Router();
+const paymentRouter = Router();
 
-roomRouter.get("/health", getRoomStatus);
+paymentRouter.post("/generate", authenticate, generatePayment);
 
-export default roomRouter;
+paymentRouter.get("/vnpay-ipn", paymentWebhook);
+
+export default paymentRouter;
