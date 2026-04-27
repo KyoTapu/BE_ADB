@@ -1,10 +1,9 @@
-// DTO formatter: only map data for API response.
-// Replace fields below to match your module.
 export const toFacilitiesResponse = (record = {}) => ({
-  id: record.id,
-  name: record.name,
-  createdAt: record.created_at,
-  updatedAt: record.updated_at,
+  id: record.service_id,
+  hotelId: record.hotel_id,
+  name: record.service_name,
+  price: record.service_price,
+  pricingType: record.pricing_type,
 });
 
 export const toFacilitiesListResponse = (records = []) =>
