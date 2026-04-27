@@ -2,9 +2,11 @@
 // Replace fields below to match your module.
 export const toPaymentResponse = (record = {}) => ({
   id: record.id,
-  name: record.name,
-  createdAt: record.created_at,
-  updatedAt: record.updated_at,
+  bookingId: record.booking_id,
+  amount: parseFloat(record.amount),
+  method: record.payment_method,
+  status: record.status,
+  paidAt: record.paid_at
 });
 
 export const toPaymentListResponse = (records = []) =>

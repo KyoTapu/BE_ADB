@@ -1,9 +1,19 @@
-import { paymentService } from "./payment.service.js";
+import { adminPaymentService } from "./payment.service.js";
+import { sendSuccess } from "../../../utils/response.js";
 
-export const getPaymentStatus = async (req, res, next) => {
+export const getHistory = async (req, res, next) => {
   try {
-    const data = await paymentService.getStatus();
-    res.json(data);
+    const data = await adminPaymentService.getTransactions(req.user, req.query);
+    sendSuccess(res, data);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createManual = async (req, res, next) => {
+  try {
+    const data = await adminPaymentService.recordManualPayment(req.user, req.body);
+    sendSuccess(res, data, 201);
   } catch (error) {
     next(error);
   }

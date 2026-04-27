@@ -1,8 +1,12 @@
 import { Router } from "express";
-import { getBookingStatus } from "./booking.controller.js";
+import { getBookings, updateStatus } from "./booking.controller.js";
+import { authenticate, authorize } from "../../../middlewares/auth.middleware.js";
 
 const bookingRouter = Router();
 
-bookingRouter.get("/health", getBookingStatus);
+bookingRouter.use(authenticate, authorize('admin'));
+
+bookingRouter.get("/", getBookings);
+bookingRouter.patch("/:id/status", updateStatus);
 
 export default bookingRouter;
