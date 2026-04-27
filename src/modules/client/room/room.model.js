@@ -1,13 +1,11 @@
 // DTO formatter: only map data for API response.
 // Replace fields below to match your module.
-export const toPaymentResponse = (record = {}) => ({
+export const toRoomResponse = (record = {}) => ({
   id: record.id,
-  bookingId: record.booking_id,
-  amount: parseFloat(record.amount),
-  method: record.payment_method,
-  status: record.status,
-  paidAt: record.paid_at
+  name: record.name,
+  createdAt: record.created_at,
+  updatedAt: record.updated_at,
 });
 
-export const toPaymentListResponse = (records = []) =>
-  records.map((record) => toPaymentResponse(record));
+export const toRoomListResponse = (records = []) =>
+  records.map((record) => toRoomResponse(record));
