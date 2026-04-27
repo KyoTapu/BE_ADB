@@ -20,7 +20,6 @@ export const findUserByEmail = async (email) => {
       u.user_id::text AS id,
       u.full_name,
       u.email,
-      u.phone,
       u.password_hash,
       u.is_active,
       u.is_banned,
@@ -44,7 +43,6 @@ export const findUserById = async (userId) => {
       u.user_id::text AS id,
       u.full_name,
       u.email,
-      u.phone,
       u.is_active,
       u.is_banned,
       u.created_at,
@@ -59,31 +57,25 @@ export const findUserById = async (userId) => {
   return rows[0] || null;
 };
 
-export const createUser = async ({ fullName, email, phone, passwordHash }) => {
+export const setUserRole = async (userId, role) => {
   await ensureRoleTable();
 
-  const query = `
-    INSERT INTO public.user (full_name, email, phone, password_hash, is_active, is_banned)
-    VALUES ($1, $2, $3, $4, true, false)
-    RETURNING user_id::text AS id, full_name, email, phone, is_active, is_banned, created_at
+  const user = await findUserById(userId);
+  if (!user) {
+    return null;
+  }
+
+  const upsertQuery = `
+    INSERT INTO public.user_roles (user_id, role, updated_at)
+    VALUES ($1::uuid, $2, CURRENT_TIMESTAMP)
+    ON CONFLICT (user_id)
+    DO UPDATE SET
+      role = EXCLUDED.role,
+      updated_at = CURRENT_TIMESTAMP
   `;
 
-  const { rows } = await pool.query(query, [fullName, email, phone, passwordHash]);
-  const created = rows[0];
-
-  await pool.query(
-    `
-      INSERT INTO public.user_roles (user_id, role, updated_at)
-      VALUES ($1::uuid, 'client', CURRENT_TIMESTAMP)
-      ON CONFLICT (user_id)
-      DO UPDATE SET
-        role = EXCLUDED.role,
-        updated_at = CURRENT_TIMESTAMP
-    `,
-    [created.id]
-  );
-
-  return findUserById(created.id);
+  await pool.query(upsertQuery, [userId, role]);
+  return findUserById(userId);
 };
 
 export const getStatus = async () => {
@@ -114,8 +106,8 @@ export const getStatus = async () => {
 };
 
 export const authRepository = {
-  createUser,
-  findUserByEmail,
   findUserById,
+  findUserByEmail,
+  setUserRole,
   getStatus,
 };

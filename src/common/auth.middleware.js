@@ -21,28 +21,30 @@ export const authenticate = (req, res, next) => {
   }
 };
 
-export const authorize = (...allowedRoles) => (req, res, next) => {
-  try {
-    if (!req.user) {
-      const error = new Error("Unauthenticated");
-      error.status = 401;
-      error.code = "UNAUTHENTICATED";
-      throw error;
-    }
+export const authorize =
+  (...allowedRoles) =>
+  (req, res, next) => {
+    try {
+      if (!req.user) {
+        const error = new Error("Unauthenticated");
+        error.status = 401;
+        error.code = "UNAUTHENTICATED";
+        throw error;
+      }
 
-    if (allowedRoles.length === 0) {
+      if (allowedRoles.length === 0) {
+        return next();
+      }
+
+      if (!allowedRoles.includes(req.user.role)) {
+        const error = new Error("Forbidden");
+        error.status = 403;
+        error.code = "FORBIDDEN";
+        throw error;
+      }
+
       return next();
+    } catch (error) {
+      return next(error);
     }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      const error = new Error("Forbidden");
-      error.status = 403;
-      error.code = "FORBIDDEN";
-      throw error;
-    }
-
-    return next();
-  } catch (error) {
-    return next(error);
-  }
-};
+  };
