@@ -3,7 +3,7 @@ import { pool } from "../../../../config/db.config.js";
 const ensureRoleTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS public.user_roles (
-      user_id uuid PRIMARY KEY REFERENCES public."User"(user_id) ON DELETE CASCADE,
+      user_id uuid PRIMARY KEY REFERENCES public.user(user_id) ON DELETE CASCADE,
       role character varying NOT NULL DEFAULT 'client',
       updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
@@ -25,7 +25,7 @@ export const findUserByEmail = async (email) => {
       u.is_banned,
       u.created_at,
       COALESCE(ur.role, 'client') AS role
-    FROM public."User" u
+    FROM public.user u
     LEFT JOIN public.user_roles ur ON ur.user_id = u.user_id
     WHERE LOWER(u.email) = LOWER($1)
     LIMIT 1
@@ -47,7 +47,7 @@ export const findUserById = async (userId) => {
       u.is_banned,
       u.created_at,
       COALESCE(ur.role, 'client') AS role
-    FROM public."User" u
+    FROM public.user u
     LEFT JOIN public.user_roles ur ON ur.user_id = u.user_id
     WHERE u.user_id::text = $1
     LIMIT 1
@@ -85,7 +85,7 @@ export const getStatus = async () => {
       COALESCE(full_name, email, 'unknown') AS name,
       created_at,
       created_at AS updated_at
-    FROM public."User"
+    FROM public.user
     ORDER BY created_at DESC
     LIMIT 1
   `;

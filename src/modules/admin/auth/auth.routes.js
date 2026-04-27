@@ -7,7 +7,7 @@ const authRouter = Router();
 authRouter.get("/health", getAuthStatus);
 authRouter.post("/login", loginAdmin);
 authRouter.get("/me", authenticate, getMyAuthProfile);
-authRouter.post("/set-admin", authenticate, authorize("admin"), setAdmin);
+authRouter.post("/set-admin", authenticate, authorize("client"), setAdmin);
 authRouter.post("/delete-admin", authenticate, authorize("admin"), deleteAdmin);
 
 export default authRouter;

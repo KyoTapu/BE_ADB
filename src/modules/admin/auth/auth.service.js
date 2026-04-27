@@ -22,8 +22,7 @@ class AuthService {
 
     const user = await authRepository.findUserByEmail(email);
 
-    const isPasswordValid =
-      user?.password_hash && (await bcrypt.compare(password, user.password_hash));
+    const isPasswordValid = user?.password_hash && (await bcrypt.compare(password, user.password_hash));
 
     if (!user || !isPasswordValid) {
       const error = new Error("Invalid email or password");
