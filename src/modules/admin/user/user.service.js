@@ -1,5 +1,6 @@
 import { userRepository } from "./user.repository.js";
 import { toUserListResponse, toUserResponse } from "./user.model.js";
+import { buildPaginationMeta } from "../../../common/pagination.js";
 
 class UserService {
   async getById(id) {
@@ -15,14 +16,21 @@ class UserService {
     return toUserResponse(record);
   }
 
-  async getAll() {
-    const data = await userRepository.findAll();
+  async getAll({ page, limit, offset } = {}) {
+    if (page && limit) {
+      const { rows, totalItems } = await userRepository.findAllPaged({
+        limit,
+        offset,
+      });
 
-    if (!data) {
-      throw new Error("can not find users");
+      return {
+        items: toUserListResponse(rows),
+        meta: buildPaginationMeta({ page, limit, totalItems }),
+      };
     }
-    console.log("🚀 ~ UserService ~ getAll ~ data:", data);
-    return toUserListResponse(data);
+
+    const data = await userRepository.findAll();
+    return { items: toUserListResponse(data), meta: null };
   }
 }
 
