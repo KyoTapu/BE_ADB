@@ -5,8 +5,8 @@ import { amenitiesRouter } from "./src/modules/admin/amenities/index.js";
 import { facilitiesRouter } from "./src/modules/admin/facilities/index.js";
 import { userRouter as adminUserRouter } from "./src/modules/admin/user/index.js";
 import { authRouter as clientAuthRouter } from "./src/modules/client/auth/index.js";
-import { bookingRouter } from "./modules/booking/index.js";
-import { paymentRouter } from "./modules/payment/index.js";
+import { bookingRouter } from "./src/modules/client/booking/index.js";
+import { paymentRouter } from "./src/modules/client/payment/index.js";
 
 import { hotelsRouter as adminHotelsRouter } from "./src/modules/admin/hotels/index.js";
 import { hotelsRouter as clientHotelsRouter } from "./src/modules/client/hotels/index.js";

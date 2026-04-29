@@ -1,4 +1,4 @@
-import { pool } from "../config/db.js";
+import { pool } from "../../../../config/db.config.js";
 class BookingRepository {
   async createWithDetails(bookingData, details) {
     const client = await pool.connect();

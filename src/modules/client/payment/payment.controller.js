@@ -1,5 +1,5 @@
 import { paymentService } from "./payment.service.js";
-import { sendSuccess, sendError } from "../../utils/response.js";
+import { sendSuccess } from "../../../common/response.js";
 
 export const generatePayment = async (req, res, next) => {
   try {

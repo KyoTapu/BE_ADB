@@ -1,4 +1,4 @@
-import { pool } from "../../../config/db.js";
+import { pool } from "../../../../config/db.config.js";
 
 class AdminPaymentRepository {
   // Lấy lịch sử giao dịch kèm thông tin khách và khách sạn

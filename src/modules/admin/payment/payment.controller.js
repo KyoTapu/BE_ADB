@@ -1,5 +1,5 @@
 import { adminPaymentService } from "./payment.service.js";
-import { sendSuccess } from "../../../utils/response.js";
+import { sendSuccess } from "../../../common/response.js";
 
 export const getHistory = async (req, res, next) => {
   try {

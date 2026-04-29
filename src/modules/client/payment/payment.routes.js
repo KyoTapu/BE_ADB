@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { generatePayment, paymentWebhook } from "./payment.controller.js";
-import { authenticate } from "../../middlewares/auth.middleware.js";
+import { authenticate } from "../../../common/auth.middleware.js";
 
 const paymentRouter = Router();
 

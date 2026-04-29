@@ -1,5 +1,5 @@
 import { bookingService } from "./booking.service.js";
-import { sendSuccess } from "../../utils/response.js"; // Đường dẫn tới file response.js của bạn
+import { sendSuccess } from "../../../common/response.js";
 
 export const createBooking = async (req, res, next) => {
   try {

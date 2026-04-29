@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getHistory, createManual } from "./payment.controller.js";
-import { authenticate, authorize } from "../../../middlewares/auth.middleware.js";
+import { authenticate, authorize } from "../../../common/auth.middleware.js";
 
 const paymentRouter = Router();
 

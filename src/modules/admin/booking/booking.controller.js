@@ -1,5 +1,5 @@
 import { adminBookingService } from "./booking.service.js";
-import { sendSuccess } from "../../../utils/response.js";
+import { sendSuccess } from "../../../common/response.js";
 
 export const getBookings = async (req, res, next) => {
   try {

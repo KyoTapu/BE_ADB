@@ -91,18 +91,7 @@ LATERAL (
 -- =========================
 -- AMENITIES
 -- =========================
-INSERT INTO amenities (amenity_id, room_type_id, amenity_name)
-SELECT
-  gen_random_uuid(),
-  room_type_id,
-  a.name
-FROM room_type,
-LATERAL (
-  VALUES
-    ('WiFi'),
-    ('Air Conditioner'),
-    ('Mini Bar')
-) a(name);
+
 
 -- =========================
 -- BOOKING
