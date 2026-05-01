@@ -54,7 +54,7 @@ class AuthService {
 
     const role = user.role;
     const accessToken = signAccessToken({
-      sub: user.user_id,
+      sub: user.id,
       email: user.email,
       role,
     });
@@ -63,7 +63,7 @@ class AuthService {
       accessToken,
       expiresIn: process.env.JWT_EXPIRES_IN,
       user: {
-        id: user.user_id,
+        id: user.id,
         email: user.email,
         fullName: user.full_name,
         role,

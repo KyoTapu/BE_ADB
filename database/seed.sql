@@ -154,3 +154,4 @@ SELECT
   '2026-12-31',
   2.0
 FROM room_type;
+

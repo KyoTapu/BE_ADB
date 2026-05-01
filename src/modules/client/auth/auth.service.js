@@ -10,10 +10,10 @@ class AuthService {
   }
 
   async register(payload = {}) {
-    const fullName = String(payload.fullName).trim();
-    const email = String(payload.email).trim();
-    const phone = String(payload.phone).trim() || null;
-    const password = String(payload.password);
+    const fullName = String(payload.fullName || "").trim();
+    const email = String(payload.email || "").trim();
+    const phone = String(payload.phone || "").trim() || null;
+    const password = String(payload.password || "");
 
     if (!email || !password) {
       const error = new Error("Email and password are required");
@@ -23,7 +23,7 @@ class AuthService {
     }
     if (password.length <= 5) {
       const error = new Error("password length must longer than 5");
-      error.status = 404;
+      error.status = 400;
       error.code = "INVALID_PASSWORD";
       throw error;
     }
@@ -39,14 +39,12 @@ class AuthService {
     const passwordHash = await bcrypt.hash(password, 10);
     let user;
     try {
-      console.log("here")
       user = await authRepository.createUser({
         fullName,
         email,
         phone,
         passwordHash,
       });
-      console.log("🚀 ~ AuthService ~ register ~ user:", user);
     } catch (dbError) {
       if (dbError?.code === "23505") {
         const error = new Error("Email already exists");
@@ -59,7 +57,7 @@ class AuthService {
 
     const role = user.role || "client";
     const accessToken = signAccessToken({
-      sub: user.user_id,
+      sub: user.id,
       email: user.email,
       role,
     });

@@ -1,4 +1,5 @@
 import { pool } from "../../../../config/db.config.js";
+import { randomUUID } from "crypto";
 
 const ensureRoleTable = async () => {
   const query = `
@@ -61,14 +62,15 @@ export const findUserById = async (userId) => {
 
 export const createUser = async ({ fullName, email, phone, passwordHash }) => {
   await ensureRoleTable();
+  const userId = randomUUID();
 
   const query = `
-    INSERT INTO public.user (full_name, email, phone, password_hash, is_active, is_banned)
-    VALUES ($1, $2, $3, $4, true, false)
+    INSERT INTO public.user (user_id, full_name, email, phone, password_hash, is_active, is_banned)
+    VALUES ($1::uuid, $2, $3, $4, $5, true, false)
     RETURNING user_id::text AS id, full_name, email, phone, is_active, is_banned, created_at
   `;
 
-  const { rows } = await pool.query(query, [fullName, email, phone, passwordHash]);
+  const { rows } = await pool.query(query, [userId, fullName, email, phone, passwordHash]);
   const created = rows[0];
 
   await pool.query(
