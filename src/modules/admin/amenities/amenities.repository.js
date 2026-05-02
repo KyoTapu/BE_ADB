@@ -5,7 +5,10 @@ const allowedFields = ["room_type_id", "amenity_name"];
 const returningFields = `
   amenity_id,
   room_type_id,
-  amenity_name
+  amenity_name,
+  amenity_description,
+  created_at,
+  updated_at
 `;
 
 class AmenitiesRepository {
