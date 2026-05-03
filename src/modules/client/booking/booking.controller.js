@@ -1,6 +1,15 @@
 import { bookingService } from "./booking.service.js";
 import { sendSuccess } from "../../../common/response.js";
 
+export const getBookingQuote = async (req, res, next) => {
+  try {
+    const result = await bookingService.buildQuote(req.body);
+    sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createBooking = async (req, res, next) => {
   try {
     const userId = req.user.user_id; // Lấy từ auth.middleware
