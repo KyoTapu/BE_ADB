@@ -1,6 +1,6 @@
 import { pool } from "../../../../config/db.config.js";
 
-const allowedFields = ["room_type_id", "amenity_name"];
+const allowedFields = ["room_type_id", "amenity_name", "amenity_description"];
 
 const returningFields = `
   amenity_id,
@@ -60,13 +60,15 @@ class AmenitiesRepository {
     const query = `
       INSERT INTO amenities (
         room_type_id,
-        amenity_name
+        amenity_name,
+        amenity_description
       )
-      VALUES ($1, $2)
+      VALUES ($1, $2, $3)
       RETURNING ${returningFields}
     `;
 
-    const { rows } = await pool.query(query, [data.room_type_id, data.amenity_name]);
+    const values = [data.room_type_id, data.amenity_name, data.amenity_description ?? null];
+    const { rows } = await pool.query(query, values);
     return rows[0];
   }
 
@@ -86,7 +88,8 @@ class AmenitiesRepository {
 
     const query = `
       UPDATE amenities
-      SET ${fields.join(", ")}
+      SET ${fields.join(", ")},
+          updated_at = CURRENT_TIMESTAMP
       WHERE amenity_id = $${index}
       RETURNING ${returningFields}
     `;

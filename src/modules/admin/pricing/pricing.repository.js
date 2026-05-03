@@ -1,12 +1,233 @@
+import { pool } from "../../../../config/db.config.js";
+
+const seasonalReturningFields = `
+  season_id,
+  hotel_id,
+  start_date,
+  end_date,
+  multiplier,
+  updated_at
+`;
+
+const specificDateReturningFields = `
+  id,
+  room_type_id,
+  specific_date,
+  specific_rate,
+  specific_note
+`;
+
 class PricingRepository {
   async getStatus() {
-    // TODO: Replace with real DB query.
+    const [seasonalCountResult, specificDateCountResult] = await Promise.all([
+      pool.query("SELECT COUNT(*)::int AS total FROM seasonalpricing"),
+      pool.query("SELECT COUNT(*)::int AS total FROM specialdatepricing"),
+    ]);
+
     return {
-      id: 1,
-      name: "pricing",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      status: "ok",
+      seasonalPricingTotal: seasonalCountResult.rows[0]?.total || 0,
+      specificDatePricingTotal: specificDateCountResult.rows[0]?.total || 0,
     };
+  }
+
+  async getAllSeasonalPricing({ hotel_id, limit = 100, offset = 0 } = {}) {
+    const values = [];
+    let index = 1;
+    let query = `
+      SELECT ${seasonalReturningFields}
+      FROM seasonalpricing
+      WHERE 1 = 1
+    `;
+
+    if (hotel_id) {
+      query += ` AND hotel_id = $${index}`;
+      values.push(hotel_id);
+      index++;
+    }
+
+    query += ` ORDER BY start_date ASC, season_id DESC LIMIT $${index} OFFSET $${index + 1}`;
+    values.push(Math.min(Number(limit) || 100, 100), Math.max(Number(offset) || 0, 0));
+
+    const { rows } = await pool.query(query, values);
+    return rows;
+  }
+
+  async getSeasonalPricingById(id) {
+    const query = `
+      SELECT ${seasonalReturningFields}
+      FROM seasonalpricing
+      WHERE season_id = $1
+    `;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] || null;
+  }
+
+  async createSeasonalPricing(data) {
+    const query = `
+      INSERT INTO seasonalpricing (
+        hotel_id,
+        start_date,
+        end_date,
+        multiplier
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING ${seasonalReturningFields}
+    `;
+
+    const values = [data.hotel_id, data.start_date, data.end_date, data.multiplier];
+    const { rows } = await pool.query(query, values);
+    return rows[0];
+  }
+
+  async updateSeasonalPricing(id, data) {
+    const fields = [];
+    const values = [];
+    let index = 1;
+
+    for (const [key, value] of Object.entries(data)) {
+      fields.push(`${key} = $${index}`);
+      values.push(value);
+      index++;
+    }
+
+    if (!fields.length) {
+      return null;
+    }
+
+    const query = `
+      UPDATE seasonalpricing
+      SET ${fields.join(", ")},
+          updated_at = CURRENT_TIMESTAMP
+      WHERE season_id = $${index}
+      RETURNING ${seasonalReturningFields}
+    `;
+
+    values.push(id);
+    const { rows } = await pool.query(query, values);
+    return rows[0] || null;
+  }
+
+  async deleteSeasonalPricing(id) {
+    const query = `
+      DELETE FROM seasonalpricing
+      WHERE season_id = $1
+      RETURNING season_id
+    `;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] || null;
+  }
+
+  async getAllSpecificDatePricing({ room_type_id, limit = 100, offset = 0 } = {}) {
+    const values = [];
+    let index = 1;
+    let query = `
+      SELECT ${specificDateReturningFields}
+      FROM specialdatepricing
+      WHERE 1 = 1
+    `;
+
+    if (room_type_id) {
+      query += ` AND room_type_id = $${index}`;
+      values.push(room_type_id);
+      index++;
+    }
+
+    query += ` ORDER BY specific_date ASC, id DESC LIMIT $${index} OFFSET $${index + 1}`;
+    values.push(Math.min(Number(limit) || 100, 100), Math.max(Number(offset) || 0, 0));
+
+    const { rows } = await pool.query(query, values);
+    return rows;
+  }
+
+  async getSpecificDatePricingById(id) {
+    const query = `
+      SELECT ${specificDateReturningFields}
+      FROM specialdatepricing
+      WHERE id = $1
+    `;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] || null;
+  }
+
+  async createSpecificDatePricing(data) {
+    const query = `
+      INSERT INTO specialdatepricing (
+        room_type_id,
+        specific_date,
+        specific_rate,
+        specific_note
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING ${specificDateReturningFields}
+    `;
+
+    const values = [data.room_type_id, data.specific_date, data.specific_rate, data.specific_note];
+    const { rows } = await pool.query(query, values);
+    return rows[0];
+  }
+
+  async updateSpecificDatePricing(id, data) {
+    const fields = [];
+    const values = [];
+    let index = 1;
+
+    for (const [key, value] of Object.entries(data)) {
+      fields.push(`${key} = $${index}`);
+      values.push(value);
+      index++;
+    }
+
+    if (!fields.length) {
+      return null;
+    }
+
+    const query = `
+      UPDATE specialdatepricing
+      SET ${fields.join(", ")}
+      WHERE id = $${index}
+      RETURNING ${specificDateReturningFields}
+    `;
+
+    values.push(id);
+    const { rows } = await pool.query(query, values);
+    return rows[0] || null;
+  }
+
+  async deleteSpecificDatePricing(id) {
+    const query = `
+      DELETE FROM specialdatepricing
+      WHERE id = $1
+      RETURNING id
+    `;
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] || null;
+  }
+
+  async hotelExists(hotelId) {
+    const { rows } = await pool.query(
+      `
+        SELECT hotel_id
+        FROM hotels
+        WHERE hotel_id = $1
+        LIMIT 1
+      `,
+      [hotelId],
+    );
+    return Boolean(rows[0]);
+  }
+
+  async roomTypeExists(roomTypeId) {
+    const { rows } = await pool.query(
+      `
+        SELECT room_type_id
+        FROM room_type
+        WHERE room_type_id = $1
+        LIMIT 1
+      `,
+      [roomTypeId],
+    );
+    return Boolean(rows[0]);
   }
 }
 

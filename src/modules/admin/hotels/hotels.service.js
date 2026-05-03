@@ -11,8 +11,8 @@ class HotelsService {
     };
   }
 
-  async getAllHotels() {
-    const hotels = await hotelsRepository.getAll();
+  async getAllHotels(query = {}) {
+    const hotels = await hotelsRepository.getAll(query);
     return toHotelsListResponse(hotels);
   }
 
@@ -31,10 +31,10 @@ class HotelsService {
 
   async createHotel(payload = {}) {
     const data = {
-      country_id: "d210974e-af93-4c04-87c7-bd673a467193", //VN
+      country_id: Number(payload.country_id) || 1,
       hotel_name: String(payload.hotel_name || "").trim(),
       city_address: String(payload.city_address || "").trim(),
-      star_rating: payload.star_rating,
+      star_rating: Number(payload.star_rating),
       description: payload.description || null,
       timezone: payload.timezone || "UTC",
     };
@@ -71,10 +71,10 @@ class HotelsService {
 
     // 2. Normalize payload
     const normalizedPayload = {
-      country_id: payload.country_id,
+      country_id: payload.country_id != null ? Number(payload.country_id) : undefined,
       hotel_name: payload.hotel_name?.trim(),
       city_address: payload.city_address?.trim(),
-      star_rating: payload.star_rating,
+      star_rating: payload.star_rating != null ? Number(payload.star_rating) : undefined,
       description: payload.description ?? null,
       timezone: payload.timezone ?? existingHotel.timezone, // giữ timezone nếu không gửi
     };

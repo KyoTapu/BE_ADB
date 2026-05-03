@@ -35,6 +35,7 @@ class AmenitiesService {
     const data = {
       room_type_id: payload.room_type_id,
       amenity_name: String(payload.amenity_name || "").trim(),
+      amenity_description: payload.amenity_description ?? payload.description ?? null,
     };
 
     if (!data.room_type_id || !data.amenity_name) {
@@ -63,6 +64,10 @@ class AmenitiesService {
     const merged = {
       room_type_id: payload.room_type_id ?? existing.room_type_id,
       amenity_name: payload.amenity_name?.trim() ?? existing.amenity_name,
+      amenity_description:
+        payload.amenity_description?.trim() ??
+        payload.description?.trim() ??
+        existing.amenity_description,
     };
 
     if (!merged.room_type_id || !merged.amenity_name) {

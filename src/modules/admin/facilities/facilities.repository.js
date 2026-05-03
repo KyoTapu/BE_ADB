@@ -1,28 +1,30 @@
 import { pool } from "../../../../config/db.config.js";
 
-const allowedFields = ["hotel_id", "service_name", "service_price", "pricing_type"];
+const allowedFields = ["hotel_id", "facility_name", "facility_price", "pricing_type"];
 
 const returningFields = `
   service_id,
   hotel_id,
-  service_name,
-  service_price,
-  pricing_type
+  facility_name,
+  facility_price,
+  pricing_type,
+  created_at,
+  updated_at
 `;
 
 class FacilitiesRepository {
   baseSelect = `
     SELECT ${returningFields}
-    FROM services
+    FROM facilities
     WHERE 1 = 1
   `;
 
   async getStatus() {
-    const { rows } = await pool.query("SELECT COUNT(*)::int AS total FROM services");
+    const { rows } = await pool.query("SELECT COUNT(*)::int AS total FROM facilities");
     return {
       status: "ok",
       total: rows[0]?.total || 0,
-      sourceTable: "services",
+      sourceTable: "facilities",
     };
   }
 
@@ -38,7 +40,7 @@ class FacilitiesRepository {
     }
 
     if (search) {
-      query += ` AND service_name ILIKE $${index}`;
+      query += ` AND facility_name ILIKE $${index}`;
       values.push(`%${String(search).trim()}%`);
       index++;
     }
@@ -58,17 +60,17 @@ class FacilitiesRepository {
 
   async create(data) {
     const query = `
-      INSERT INTO services (
+      INSERT INTO facilities (
         hotel_id,
-        service_name,
-        service_price,
+        facility_name,
+        facility_price,
         pricing_type
       )
       VALUES ($1, $2, $3, $4)
       RETURNING ${returningFields}
     `;
 
-    const values = [data.hotel_id, data.service_name, data.service_price, data.pricing_type];
+    const values = [data.hotel_id, data.facility_name, data.facility_price, data.pricing_type];
     const { rows } = await pool.query(query, values);
     return rows[0];
   }
@@ -88,8 +90,9 @@ class FacilitiesRepository {
     if (!fields.length) return null;
 
     const query = `
-      UPDATE services
-      SET ${fields.join(", ")}
+      UPDATE facilities
+      SET ${fields.join(", ")},
+          updated_at = CURRENT_TIMESTAMP
       WHERE service_id = $${index}
       RETURNING ${returningFields}
     `;
@@ -101,7 +104,7 @@ class FacilitiesRepository {
 
   async delete(id) {
     const query = `
-      DELETE FROM services
+      DELETE FROM facilities
       WHERE service_id = $1
       RETURNING service_id
     `;

@@ -3,8 +3,8 @@ export const toAmenitiesResponse = (record = {}) => ({
   roomTypeId: record.room_type_id,
   name: record.amenity_name,
   description: record.amenity_description,
-  created_at: record.created_at,
-  updated_at: record.updated_at
+  createdAt: record.created_at ?? null,
+  updatedAt: record.updated_at ?? null,
 });
 
 export const toAmenitiesListResponse = (records = []) =>

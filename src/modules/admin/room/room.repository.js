@@ -1,11 +1,6 @@
 import { pool } from "../../../../config/db.config.js";
 
-/* =========================
-   COMMON CONFIG
-========================= */
-
 const roomTypeFields = ["hotel_id", "room_type_name", "room_type_base_price", "room_type_services"];
-
 const roomFields = ["room_type_id", "name", "floor", "number", "capacity", "is_available", "status"];
 
 const roomTypeReturning = `
@@ -13,9 +8,7 @@ const roomTypeReturning = `
   hotel_id,
   room_type_name,
   room_type_base_price,
-  room_type_services,
-  created_at,
-  updated_at
+  room_type_services
 `;
 
 const roomReturning = `
@@ -31,40 +24,60 @@ const roomReturning = `
   updated_at
 `;
 
-/* =========================
-   REPOSITORY
-========================= */
+const amenityReturning = `
+  amenity_id,
+  room_type_id,
+  amenity_name,
+  amenity_description,
+  created_at,
+  updated_at
+`;
+
+const facilityRelationReturning = `
+  rts.room_type_id,
+  f.service_id,
+  f.hotel_id,
+  f.facility_name,
+  f.facility_price,
+  f.pricing_type,
+  f.created_at,
+  f.updated_at
+`;
 
 class RoomRepository {
-  /* =========================
-     ROOM TYPE
-  ========================= */
-
   baseRoomType = `
     SELECT ${roomTypeReturning}
     FROM room_type
-    WHERE deleted_at IS NULL
+    WHERE 1 = 1
   `;
 
-  async getAllRoomTypes({ limit = 10, offset = 0 } = {}) {
-    const query = `
-      ${this.baseRoomType}
-      ORDER BY updated_at DESC
-      LIMIT $1 OFFSET $2
-    `;
-    const { rows } = await pool.query(query, [limit, offset]);
+  async getAllRoomTypes({ limit = 100, offset = 0, hotel_id } = {}) {
+    let query = this.baseRoomType;
+    const values = [];
+    let index = 1;
+
+    if (hotel_id) {
+      query += ` AND hotel_id = $${index}`;
+      values.push(hotel_id);
+      index++;
+    }
+
+    query += ` ORDER BY room_type_id DESC LIMIT $${index} OFFSET $${index + 1}`;
+    values.push(Math.min(Number(limit) || 100, 100), Math.max(Number(offset) || 0, 0));
+
+    const { rows } = await pool.query(query, values);
     return rows;
   }
 
-  async getRoomTypeByID(id) {
+  async getRoomTypeByID(id, client = pool) {
     if (!id) throw new Error("Invalid room_type_id");
 
     const query = `${this.baseRoomType} AND room_type_id = $1`;
-    const { rows } = await pool.query(query, [id]);
+    const { rows } = await client.query(query, [id]);
     return rows[0] || null;
   }
 
-  async createRoomType(data) {
+  async createRoomType(data, client = pool) {
     const query = `
       INSERT INTO room_type (
         hotel_id,
@@ -76,13 +89,18 @@ class RoomRepository {
       RETURNING ${roomTypeReturning}
     `;
 
-    const values = [data.hotel_id, data.room_type_name, data.room_type_base_price, data.room_type_services];
+    const values = [
+      data.hotel_id,
+      data.room_type_name,
+      data.room_type_base_price,
+      data.room_type_services ?? null,
+    ];
 
-    const { rows } = await pool.query(query, values);
+    const { rows } = await client.query(query, values);
     return rows[0];
   }
 
-  async updateRoomType(id, data) {
+  async updateRoomType(id, data, client = pool) {
     if (!id) throw new Error("Invalid room_type_id");
 
     const fields = [];
@@ -100,45 +118,137 @@ class RoomRepository {
 
     const query = `
       UPDATE room_type
-      SET ${fields.join(", ")},
-          updated_at = CURRENT_TIMESTAMP
-      WHERE room_type_id = $${index} AND deleted_at IS NULL
+      SET ${fields.join(", ")}
+      WHERE room_type_id = $${index}
       RETURNING ${roomTypeReturning}
     `;
 
     values.push(id);
 
-    const { rows } = await pool.query(query, values);
+    const { rows } = await client.query(query, values);
     return rows[0] || null;
   }
 
-  async deleteRoomType(id) {
+  async deleteRoomType(id, client = pool) {
     const query = `
-      UPDATE room_type
-      SET deleted_at = CURRENT_TIMESTAMP
-      WHERE room_type_id = $1 AND deleted_at IS NULL
+      DELETE FROM room_type
+      WHERE room_type_id = $1
       RETURNING room_type_id
     `;
-    const { rows } = await pool.query(query, [id]);
+    const { rows } = await client.query(query, [id]);
     return rows[0] || null;
   }
 
-  /* =========================
-     ROOMS
-  ========================= */
+  async getAmenitiesByRoomTypeIds(roomTypeIds, client = pool) {
+    if (!roomTypeIds.length) return [];
+
+    const query = `
+      SELECT ${amenityReturning}
+      FROM amenities
+      WHERE room_type_id = ANY($1::int[])
+      ORDER BY amenity_id DESC
+    `;
+
+    const { rows } = await client.query(query, [roomTypeIds]);
+    return rows;
+  }
+
+  async getFacilitiesByRoomTypeIds(roomTypeIds, client = pool) {
+    if (!roomTypeIds.length) return [];
+
+    const query = `
+      SELECT ${facilityRelationReturning}
+      FROM room_type_service rts
+      JOIN facilities f ON f.service_id = rts.facilities_id
+      WHERE rts.room_type_id = ANY($1::int[])
+      ORDER BY f.service_id DESC
+    `;
+
+    const { rows } = await client.query(query, [roomTypeIds]);
+    return rows;
+  }
+
+  async getFacilitiesByIds(facilityIds, client = pool) {
+    if (!facilityIds.length) return [];
+
+    const query = `
+      SELECT
+        service_id,
+        hotel_id,
+        facility_name,
+        facility_price,
+        pricing_type,
+        created_at,
+        updated_at
+      FROM facilities
+      WHERE service_id = ANY($1::int[])
+    `;
+
+    const { rows } = await client.query(query, [facilityIds]);
+    return rows;
+  }
+
+  async replaceRoomTypeFacilities(roomTypeId, facilityIds, client = pool) {
+    await client.query("DELETE FROM room_type_service WHERE room_type_id = $1", [roomTypeId]);
+
+    if (!facilityIds.length) {
+      return;
+    }
+
+    const values = [];
+    const placeholders = facilityIds.map((facilityId, index) => {
+      const baseIndex = index * 2;
+      values.push(roomTypeId, facilityId);
+      return `($${baseIndex + 1}, $${baseIndex + 2})`;
+    });
+
+    const query = `
+      INSERT INTO room_type_service (room_type_id, facilities_id)
+      VALUES ${placeholders.join(", ")}
+    `;
+
+    await client.query(query, values);
+  }
+
+  async replaceRoomTypeAmenities(roomTypeId, amenities, client = pool) {
+    await client.query("DELETE FROM amenities WHERE room_type_id = $1", [roomTypeId]);
+
+    if (!amenities.length) {
+      return;
+    }
+
+    const values = [];
+    const placeholders = amenities.map((amenity, index) => {
+      const baseIndex = index * 3;
+      values.push(roomTypeId, amenity.name, amenity.description || null);
+      return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3})`;
+    });
+
+    const query = `
+      INSERT INTO amenities (room_type_id, amenity_name, amenity_description)
+      VALUES ${placeholders.join(", ")}
+    `;
+
+    await client.query(query, values);
+  }
+
+  async deleteRoomTypeRelations(roomTypeId, client = pool) {
+    await client.query("DELETE FROM room_type_service WHERE room_type_id = $1", [roomTypeId]);
+    await client.query("DELETE FROM amenities WHERE room_type_id = $1", [roomTypeId]);
+  }
 
   baseRoom = `
     SELECT ${roomReturning}
     FROM rooms
-    WHERE deleted_at IS NULL
+    WHERE 1 = 1
   `;
 
   async getAllRooms({ limit = 10, offset = 0, room_type_id } = {}) {
     let query = `
-    SELECT ${roomReturning}
-    FROM rooms
-    WHERE deleted_at IS NULL
-  `;
+      SELECT ${roomReturning}
+      FROM rooms
+      WHERE 1 = 1
+    `;
 
     const values = [];
     let index = 1;
@@ -213,7 +323,7 @@ class RoomRepository {
       UPDATE rooms
       SET ${fields.join(", ")},
           updated_at = CURRENT_TIMESTAMP
-      WHERE room_id = $${index} AND deleted_at IS NULL
+      WHERE room_id = $${index}
       RETURNING ${roomReturning}
     `;
 
@@ -225,30 +335,24 @@ class RoomRepository {
 
   async deleteRoom(id) {
     const query = `
-      UPDATE rooms
-      SET deleted_at = CURRENT_TIMESTAMP
-      WHERE room_id = $1 AND deleted_at IS NULL
+      DELETE FROM rooms
+      WHERE room_id = $1
       RETURNING room_id
     `;
     const { rows } = await pool.query(query, [id]);
     return rows[0] || null;
   }
 
-  /* =========================
-     JOIN (rất useful 🔥)
-  ========================= */
-
   async getRoomWithType(id) {
     const query = `
-      SELECT 
+      SELECT
         r.*,
         rt.room_type_name,
-        rt.room_type_base_price
+        rt.room_type_base_price,
+        rt.room_type_services
       FROM rooms r
       JOIN room_type rt ON r.room_type_id = rt.room_type_id
       WHERE r.room_id = $1
-        AND r.deleted_at IS NULL
-        AND rt.deleted_at IS NULL
     `;
 
     const { rows } = await pool.query(query, [id]);

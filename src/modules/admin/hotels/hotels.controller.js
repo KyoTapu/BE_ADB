@@ -12,7 +12,7 @@ export const getHotelsStatus = async (req, res, next) => {
 
 export const getAllHotels = async (req, res, next) => {
   try {
-    const data = await hotelsService.getAllHotels();
+    const data = await hotelsService.getAllHotels(req.query);
     return sendSuccess(res, data);
   } catch (error) {
     next(error);

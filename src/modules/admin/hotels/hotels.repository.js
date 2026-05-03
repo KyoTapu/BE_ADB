@@ -10,7 +10,6 @@ const returningFields = `
   star_rating,
   description,
   timezone,
-  created_at,
   updated_at
 `;
 
@@ -19,7 +18,7 @@ class HotelsRepository {
   baseSelect = `
     SELECT ${returningFields}
     FROM hotels
-    WHERE deleted_at IS NULL
+    WHERE 1 = 1
   `;
 
   // =========================
@@ -112,7 +111,7 @@ class HotelsRepository {
       UPDATE hotels
       SET ${fields.join(", ")},
           updated_at = CURRENT_TIMESTAMP
-      WHERE hotel_id = $${index} AND deleted_at IS NULL
+      WHERE hotel_id = $${index}
       RETURNING ${returningFields}
     `;
 
@@ -129,11 +128,9 @@ class HotelsRepository {
     if (!id) throw new Error("Invalid hotel_id");
 
     const query = `
-      UPDATE hotels
-      SET deleted_at = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE hotel_id = $1 AND deleted_at IS NULL
-      RETURNING hotel_id, deleted_at
+      DELETE FROM hotels
+      WHERE hotel_id = $1
+      RETURNING hotel_id
     `;
 
     const { rows } = await pool.query(query, [id]);
@@ -145,17 +142,7 @@ class HotelsRepository {
   // =========================
   async restore(id) {
     if (!id) throw new Error("Invalid hotel_id");
-
-    const query = `
-      UPDATE hotels
-      SET deleted_at = NULL,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE hotel_id = $1
-      RETURNING ${returningFields}
-    `;
-
-    const { rows } = await pool.query(query, [id]);
-    return rows[0] || null;
+    throw new Error("Restore is not supported because hotels table has no deleted_at column");
   }
 
   // =========================

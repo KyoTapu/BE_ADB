@@ -6,10 +6,10 @@ export const toHotelsResponse = (record = {}) => ({
   cityAddress: record.city_address,
   starRating: record.star_rating,
   description: record.description,
-  timeZone: record.time_zone,
-  createdAt: record.created_at,
-  updatedAt: record.updated_at,
-  deletedAt: record.deleted_at,
+  timeZone: record.timezone,
+  createdAt: record.created_at ?? null,
+  updatedAt: record.updated_at ?? null,
+  deletedAt: record.deleted_at ?? null,
 });
 
 export const toHotelsListResponse = (records = []) => records.map((record) => toHotelsResponse(record));

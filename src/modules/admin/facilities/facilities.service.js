@@ -34,13 +34,13 @@ class FacilitiesService {
   async createFacility(payload = {}) {
     const data = {
       hotel_id: payload.hotel_id,
-      service_name: String(payload.service_name || payload.name || "").trim(),
-      service_price: payload.service_price ?? payload.price ?? null,
+      facility_name: String(payload.facility_name || payload.service_name || payload.name || "").trim(),
+      facility_price: payload.facility_price ?? payload.service_price ?? payload.price ?? null,
       pricing_type: String(payload.pricing_type || payload.pricingType || "per_use").trim(),
     };
 
-    if (!data.hotel_id || !data.service_name) {
-      throw createError("hotel_id and service_name are required", 400, "MISSING_FACILITY_FIELDS");
+    if (!data.hotel_id || !data.facility_name) {
+      throw createError("hotel_id and facility_name are required", 400, "MISSING_FACILITY_FIELDS");
     }
 
     const hotelExists = await facilitiesRepository.hotelExists(data.hotel_id);
@@ -64,13 +64,18 @@ class FacilitiesService {
 
     const merged = {
       hotel_id: payload.hotel_id ?? existing.hotel_id,
-      service_name: payload.service_name?.trim() ?? payload.name?.trim() ?? existing.service_name,
-      service_price: payload.service_price ?? payload.price ?? existing.service_price,
+      facility_name:
+        payload.facility_name?.trim() ??
+        payload.service_name?.trim() ??
+        payload.name?.trim() ??
+        existing.facility_name,
+      facility_price:
+        payload.facility_price ?? payload.service_price ?? payload.price ?? existing.facility_price,
       pricing_type: payload.pricing_type?.trim() ?? payload.pricingType?.trim() ?? existing.pricing_type,
     };
 
-    if (!merged.hotel_id || !merged.service_name) {
-      throw createError("hotel_id and service_name are required", 400, "INVALID_FACILITY_FIELDS");
+    if (!merged.hotel_id || !merged.facility_name) {
+      throw createError("hotel_id and facility_name are required", 400, "INVALID_FACILITY_FIELDS");
     }
 
     if (merged.hotel_id !== existing.hotel_id) {
