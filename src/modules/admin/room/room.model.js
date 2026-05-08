@@ -26,12 +26,15 @@ export const toRoomTypeResponse = (record = {}) => ({
   amenities: Array.isArray(record.amenities)
     ? record.amenities.map((amenity) => ({
         id: amenity.amenity_id,
-        roomTypeId: amenity.room_type_id,
+        hotelId: amenity.hotel_id,
         name: amenity.amenity_name,
         description: amenity.amenity_description || "",
         createdAt: amenity.created_at ?? null,
         updatedAt: amenity.updated_at ?? null,
       }))
+    : [],
+  amenityIds: Array.isArray(record.amenities)
+    ? record.amenities.map((amenity) => amenity.amenity_id)
     : [],
   amenityNames: Array.isArray(record.amenities)
     ? record.amenities.map((amenity) => amenity.amenity_name)

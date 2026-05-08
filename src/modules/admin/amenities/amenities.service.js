@@ -33,18 +33,23 @@ class AmenitiesService {
 
   async createAmenity(payload = {}) {
     const data = {
-      room_type_id: payload.room_type_id,
+      hotel_id: Number(payload.hotel_id ?? payload.hotelId),
       amenity_name: String(payload.amenity_name || "").trim(),
       amenity_description: payload.amenity_description ?? payload.description ?? null,
     };
 
-    if (!data.room_type_id || !data.amenity_name) {
-      throw createError("room_type_id and amenity_name are required", 400, "MISSING_AMENITY_FIELDS");
+    if (!data.hotel_id || !data.amenity_name) {
+      throw createError("hotel_id and amenity_name are required", 400, "MISSING_AMENITY_FIELDS");
     }
 
-    const roomTypeExists = await amenitiesRepository.roomTypeExists(data.room_type_id);
-    if (!roomTypeExists) {
-      throw createError("Room type not found", 404, "ROOM_TYPE_NOT_FOUND");
+    const hotelExists = await amenitiesRepository.hotelExists(data.hotel_id);
+    if (!hotelExists) {
+      throw createError("Hotel not found", 404, "HOTEL_NOT_FOUND");
+    }
+
+    const duplicated = await amenitiesRepository.getByHotelAndName(data.hotel_id, data.amenity_name);
+    if (duplicated) {
+      throw createError("Amenity already exists for this hotel", 409, "AMENITY_ALREADY_EXISTS");
     }
 
     const created = await amenitiesRepository.create(data);
@@ -62,7 +67,10 @@ class AmenitiesService {
     }
 
     const merged = {
-      room_type_id: payload.room_type_id ?? existing.room_type_id,
+      hotel_id:
+        payload.hotel_id != null || payload.hotelId != null
+          ? Number(payload.hotel_id ?? payload.hotelId)
+          : existing.hotel_id,
       amenity_name: payload.amenity_name?.trim() ?? existing.amenity_name,
       amenity_description:
         payload.amenity_description?.trim() ??
@@ -70,15 +78,20 @@ class AmenitiesService {
         existing.amenity_description,
     };
 
-    if (!merged.room_type_id || !merged.amenity_name) {
-      throw createError("room_type_id and amenity_name are required", 400, "INVALID_AMENITY_FIELDS");
+    if (!merged.hotel_id || !merged.amenity_name) {
+      throw createError("hotel_id and amenity_name are required", 400, "INVALID_AMENITY_FIELDS");
     }
 
-    if (merged.room_type_id !== existing.room_type_id) {
-      const roomTypeExists = await amenitiesRepository.roomTypeExists(merged.room_type_id);
-      if (!roomTypeExists) {
-        throw createError("Room type not found", 404, "ROOM_TYPE_NOT_FOUND");
+    if (Number(merged.hotel_id) !== Number(existing.hotel_id)) {
+      const hotelExists = await amenitiesRepository.hotelExists(merged.hotel_id);
+      if (!hotelExists) {
+        throw createError("Hotel not found", 404, "HOTEL_NOT_FOUND");
       }
+    }
+
+    const duplicated = await amenitiesRepository.getByHotelAndName(merged.hotel_id, merged.amenity_name);
+    if (duplicated && Number(duplicated.amenity_id) !== Number(id)) {
+      throw createError("Amenity already exists for this hotel", 409, "AMENITY_ALREADY_EXISTS");
     }
 
     const changed = {};
@@ -101,6 +114,7 @@ class AmenitiesService {
       throw createError("Amenity id is required", 400, "MISSING_AMENITY_ID");
     }
 
+    await amenitiesRepository.deleteRoomTypeLinksByAmenityId(id);
     const deleted = await amenitiesRepository.delete(id);
     if (!deleted) {
       throw createError("Amenity not found", 404, "AMENITY_NOT_FOUND");

@@ -63,12 +63,13 @@ class ClientHotelsRepository {
 
     const query = `
       SELECT
-        amenity_id,
-        room_type_id,
-        amenity_name
-      FROM amenities
-      WHERE room_type_id = ANY($1::int[])
-      ORDER BY amenity_name ASC
+        rta.room_type_id,
+        a.amenity_id,
+        a.amenity_name
+      FROM room_type_amenity rta
+      JOIN amenities a ON a.amenity_id = rta.amenity_id
+      WHERE rta.room_type_id = ANY($1::int[])
+      ORDER BY a.amenity_name ASC
     `;
 
     const { rows } = await pool.query(query, [roomTypeIds]);
@@ -160,6 +161,109 @@ class ClientHotelsRepository {
 
     const { rows } = await pool.query(query, [roomTypeIds, checkIn, checkOut]);
     return rows;
+  }
+
+  async getSearchIndexSource() {
+    const [hotels, roomTypes, amenities, services, seasonalRows, specialRows, rooms, bookings] =
+      await Promise.all([
+        pool.query(`
+          SELECT
+            h.hotel_id,
+            h.country_id,
+            c.country_name,
+            c.country_code,
+            h.hotel_name,
+            h.city_address,
+            h.star_rating,
+            h.description,
+            h.timezone,
+            h.updated_at
+          FROM hotels h
+          LEFT JOIN country c ON c.country_id = h.country_id
+          ORDER BY h.hotel_id ASC
+        `),
+        pool.query(`
+          SELECT
+            rt.room_type_id,
+            rt.hotel_id,
+            rt.room_type_name,
+            rt.room_type_base_price,
+            rt.room_type_services
+          FROM room_type rt
+          ORDER BY rt.room_type_id ASC
+        `),
+        pool.query(`
+          SELECT
+            rta.room_type_id,
+            a.amenity_id,
+            a.amenity_name
+          FROM room_type_amenity rta
+          JOIN amenities a ON a.amenity_id = rta.amenity_id
+          ORDER BY a.amenity_id ASC
+        `),
+        pool.query(`
+          SELECT
+            rts.room_type_id,
+            s.service_id,
+            s.hotel_id,
+            s.facility_name AS service_name,
+            s.facility_price AS service_price,
+            s.pricing_type
+          FROM room_type_service rts
+          JOIN facilities s ON s.service_id = rts.facilities_id
+          ORDER BY rts.room_type_id ASC, s.service_id ASC
+        `),
+        pool.query(`
+          SELECT
+            season_id,
+            hotel_id,
+            start_date,
+            end_date,
+            multiplier
+          FROM seasonalpricing
+        `),
+        pool.query(`
+          SELECT
+            id,
+            room_type_id,
+            specific_date,
+            specific_rate,
+            specific_note
+          FROM specialdatepricing
+        `),
+        pool.query(`
+          SELECT
+            room_id,
+            room_type_id,
+            capacity,
+            COALESCE(is_available, true) AS is_available
+          FROM rooms
+          ORDER BY room_type_id ASC, room_id ASC
+        `),
+        pool.query(`
+          SELECT
+            bd.room_id,
+            r.room_type_id,
+            b.check_in,
+            b.check_out
+          FROM booking b
+          JOIN booking_detail bd ON bd.booking_id = b.id
+          JOIN rooms r ON r.room_id = bd.room_id
+          WHERE b.status NOT IN ('Cancelled', 'Rejected')
+            AND b.deleted_at IS NULL
+        `),
+      ]);
+
+    return {
+      hotels: hotels.rows,
+      roomTypes: roomTypes.rows,
+      amenities: amenities.rows,
+      services: services.rows,
+      seasonalRows: seasonalRows.rows,
+      specialRows: specialRows.rows,
+      rooms: rooms.rows,
+      bookings: bookings.rows,
+    };
   }
 }
 

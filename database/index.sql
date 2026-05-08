@@ -64,8 +64,14 @@ ON services(hotel_id);
 -- =========================
 -- AMENITIES
 -- =========================
-CREATE INDEX idx_amenities_room_type 
-ON amenities(room_type_id);
+CREATE INDEX idx_amenities_hotel 
+ON amenities(hotel_id);
+
+CREATE INDEX idx_room_type_amenity_room_type 
+ON room_type_amenity(room_type_id);
+
+CREATE INDEX idx_room_type_amenity_amenity 
+ON room_type_amenity(amenity_id);
 
 -- =========================
 -- SEASONAL PRICING

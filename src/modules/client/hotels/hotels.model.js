@@ -41,6 +41,7 @@ export const toHotelSummaryResponse = (record = {}) => ({
   timezone: record.timezone || "UTC",
   priceFrom: Number(record.priceFrom) || 0,
   stayTotalFrom: Number(record.stayTotalFrom) || 0,
+  availableRoomCountTotal: Number(record.availableRoomCountTotal) || 0,
   matchedRoomTypes: Array.isArray(record.matchedRoomTypes)
     ? record.matchedRoomTypes.map((roomType) => toRoomTypeResponse(roomType))
     : [],

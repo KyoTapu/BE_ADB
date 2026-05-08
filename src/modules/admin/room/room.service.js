@@ -34,35 +34,20 @@ const normalizeFacilityIds = (rawValue) => {
   )];
 };
 
-const normalizeAmenities = (rawValue) => {
+const normalizeAmenityIds = (rawValue) => {
   if (!Array.isArray(rawValue)) return [];
 
-  const normalized = rawValue
-    .map((item) => {
-      if (typeof item === "string") {
-        return {
-          name: item.trim(),
-          description: "",
-        };
-      }
+  return [...new Set(
+    rawValue
+      .map((item) => {
+        if (item && typeof item === "object") {
+          return Number(item.id ?? item.amenity_id ?? item.amenityId ?? item.value);
+        }
 
-      if (item && typeof item === "object") {
-        return {
-          name: String(item.name ?? item.amenity_name ?? "").trim(),
-          description: String(item.description ?? item.amenity_description ?? "").trim(),
-        };
-      }
-
-      return null;
-    })
-    .filter((item) => item?.name);
-
-  const deduped = new Map();
-  for (const amenity of normalized) {
-    deduped.set(amenity.name.toLowerCase(), amenity);
-  }
-
-  return [...deduped.values()];
+        return Number(item);
+      })
+      .filter((item) => Number.isInteger(item) && item > 0),
+  )];
 };
 
 class RoomService {
@@ -115,6 +100,25 @@ class RoomService {
     }
   }
 
+  async ensureAmenitiesBelongToHotel(hotelId, amenityIds, client) {
+    if (!amenityIds.length) return;
+
+    const amenities = await roomRepository.getAmenitiesByIds(amenityIds, client);
+
+    if (amenities.length !== amenityIds.length) {
+      throw createError("One or more amenities were not found", 404, "AMENITY_NOT_FOUND");
+    }
+
+    const invalid = amenities.find((amenity) => Number(amenity.hotel_id) !== Number(hotelId));
+    if (invalid) {
+      throw createError(
+        "Amenities must belong to the same hotel as the room type",
+        400,
+        "AMENITY_HOTEL_MISMATCH",
+      );
+    }
+  }
+
   async getAllRoomTypes(query) {
     const data = await roomRepository.getAllRoomTypes(query);
     const records = await this.attachRoomTypeRelations(data);
@@ -142,7 +146,9 @@ class RoomService {
     const facilityIds = normalizeFacilityIds(
       payload.facility_ids ?? payload.facilityIds ?? payload.facilities,
     );
-    const amenities = normalizeAmenities(payload.amenities);
+    const amenityIds = normalizeAmenityIds(
+      payload.amenity_ids ?? payload.amenityIds ?? payload.amenities,
+    );
 
     if (!data.hotel_id || !data.room_type_name || Number.isNaN(data.room_type_base_price)) {
       throw createError(
@@ -158,10 +164,11 @@ class RoomService {
     try {
       await client.query("BEGIN");
       await this.ensureFacilitiesBelongToHotel(data.hotel_id, facilityIds, client);
+      await this.ensureAmenitiesBelongToHotel(data.hotel_id, amenityIds, client);
 
       const created = await roomRepository.createRoomType(data, client);
       await roomRepository.replaceRoomTypeFacilities(created.room_type_id, facilityIds, client);
-      await roomRepository.replaceRoomTypeAmenities(created.room_type_id, amenities, client);
+      await roomRepository.replaceRoomTypeAmenities(created.room_type_id, amenityIds, client);
 
       await client.query("COMMIT");
       return await this.getRoomTypeByID(created.room_type_id);
@@ -203,11 +210,14 @@ class RoomService {
 
     const shouldSyncFacilities =
       hasOwn(payload, "facility_ids") || hasOwn(payload, "facilityIds") || hasOwn(payload, "facilities");
-    const shouldSyncAmenities = hasOwn(payload, "amenities");
+    const shouldSyncAmenities =
+      hasOwn(payload, "amenity_ids") || hasOwn(payload, "amenityIds") || hasOwn(payload, "amenities");
     const facilityIds = shouldSyncFacilities
       ? normalizeFacilityIds(payload.facility_ids ?? payload.facilityIds ?? payload.facilities)
       : [];
-    const amenities = shouldSyncAmenities ? normalizeAmenities(payload.amenities) : [];
+    const amenityIds = shouldSyncAmenities
+      ? normalizeAmenityIds(payload.amenity_ids ?? payload.amenityIds ?? payload.amenities)
+      : [];
 
     const changed = {};
     for (const key in merged) {
@@ -224,6 +234,10 @@ class RoomService {
         await this.ensureFacilitiesBelongToHotel(merged.hotel_id, facilityIds, client);
       }
 
+      if (shouldSyncAmenities) {
+        await this.ensureAmenitiesBelongToHotel(merged.hotel_id, amenityIds, client);
+      }
+
       if (Object.keys(changed).length) {
         await roomRepository.updateRoomType(id, changed, client);
       }
@@ -233,7 +247,7 @@ class RoomService {
       }
 
       if (shouldSyncAmenities) {
-        await roomRepository.replaceRoomTypeAmenities(id, amenities, client);
+        await roomRepository.replaceRoomTypeAmenities(id, amenityIds, client);
       }
 
       await client.query("COMMIT");

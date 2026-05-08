@@ -1,10 +1,10 @@
 import { pool } from "../../../../config/db.config.js";
 
-const allowedFields = ["room_type_id", "amenity_name", "amenity_description"];
+const allowedFields = ["hotel_id", "amenity_name", "amenity_description"];
 
 const returningFields = `
   amenity_id,
-  room_type_id,
+  hotel_id,
   amenity_name,
   amenity_description,
   created_at,
@@ -26,14 +26,14 @@ class AmenitiesRepository {
     };
   }
 
-  async getAll({ room_type_id, search, limit = 100, offset = 0 } = {}) {
+  async getAll({ hotel_id, search, limit = 100, offset = 0 } = {}) {
     const values = [];
     let index = 1;
     let query = this.baseSelect;
 
-    if (room_type_id) {
-      query += ` AND room_type_id = $${index}`;
-      values.push(room_type_id);
+    if (hotel_id) {
+      query += ` AND hotel_id = $${index}`;
+      values.push(hotel_id);
       index++;
     }
 
@@ -59,7 +59,7 @@ class AmenitiesRepository {
   async create(data) {
     const query = `
       INSERT INTO amenities (
-        room_type_id,
+        hotel_id,
         amenity_name,
         amenity_description
       )
@@ -67,7 +67,7 @@ class AmenitiesRepository {
       RETURNING ${returningFields}
     `;
 
-    const values = [data.room_type_id, data.amenity_name, data.amenity_description ?? null];
+    const values = [data.hotel_id, data.amenity_name, data.amenity_description ?? null];
     const { rows } = await pool.query(query, values);
     return rows[0];
   }
@@ -110,15 +110,31 @@ class AmenitiesRepository {
     return rows[0] || null;
   }
 
-  async roomTypeExists(roomTypeId) {
+  async hotelExists(hotelId) {
     const query = `
-      SELECT room_type_id
-      FROM room_type
-      WHERE room_type_id = $1
+      SELECT hotel_id
+      FROM hotels
+      WHERE hotel_id = $1
       LIMIT 1
     `;
-    const { rows } = await pool.query(query, [roomTypeId]);
+    const { rows } = await pool.query(query, [hotelId]);
     return Boolean(rows[0]);
+  }
+
+  async getByHotelAndName(hotelId, amenityName) {
+    const query = `
+      SELECT ${returningFields}
+      FROM amenities
+      WHERE hotel_id = $1
+        AND LOWER(TRIM(amenity_name)) = LOWER(TRIM($2))
+      LIMIT 1
+    `;
+    const { rows } = await pool.query(query, [hotelId, amenityName]);
+    return rows[0] || null;
+  }
+
+  async deleteRoomTypeLinksByAmenityId(amenityId) {
+    await pool.query("DELETE FROM room_type_amenity WHERE amenity_id = $1", [amenityId]);
   }
 }
 

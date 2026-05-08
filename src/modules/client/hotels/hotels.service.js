@@ -1,5 +1,6 @@
 import { generateStayDates, buildRoomTypeNightlyRates } from "../booking/booking.pricing.js";
 import { clientHotelsRepository } from "./hotels.repository.js";
+import { searchService } from "../search/search.service.js";
 import {
   toHotelDetailResponse,
   toHotelSummaryListResponse,
@@ -88,6 +89,14 @@ class ClientHotelsService {
   }
 
   async getHotelsForSearch(query = {}) {
+    try {
+      return await searchService.searchHotels(query);
+    } catch (error) {
+      if (error?.code && error.code !== "ELASTICSEARCH_NOT_CONFIGURED") {
+        console.error("Search index fallback to database:", error.message);
+      }
+    }
+
     const {
       destination,
       roomType,
@@ -160,6 +169,10 @@ class ClientHotelsService {
           matchedRoomTypes,
           priceFrom: matchedRoomTypes[0]?.averageNightlyRate || 0,
           stayTotalFrom: matchedRoomTypes[0]?.stayTotal || 0,
+          availableRoomCountTotal: matchedRoomTypes.reduce(
+            (sum, roomTypeRecord) => sum + (Number(roomTypeRecord.availableRoomCount) || 0),
+            0,
+          ),
         };
       })
       .filter((hotel) => hotel.matchedRoomTypes.length > 0)

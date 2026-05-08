@@ -1,6 +1,6 @@
 export const toAmenitiesResponse = (record = {}) => ({
   id: record.amenity_id,
-  roomTypeId: record.room_type_id,
+  hotelId: record.hotel_id,
   name: record.amenity_name,
   description: record.amenity_description,
   createdAt: record.created_at ?? null,

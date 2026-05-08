@@ -13,6 +13,31 @@ const createError = (message, status = 400, code = "BAD_REQUEST") => {
   return error;
 };
 
+const normalizeDateInput = (rawValue, fieldName) => {
+  const value = String(rawValue || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw createError(`${fieldName} must be in YYYY-MM-DD format`, 400, "INVALID_DATE_FORMAT");
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    throw createError(`${fieldName} is not a valid calendar date`, 400, "INVALID_DATE_VALUE");
+  }
+
+  return value;
+};
+
 class PricingService {
   async getStatus() {
     return pricingRepository.getStatus();
@@ -39,8 +64,8 @@ class PricingService {
   async createSeasonalPricing(payload = {}) {
     const data = {
       hotel_id: Number(payload.hotel_id ?? payload.hotelId),
-      start_date: String(payload.start_date || payload.startDate || "").trim(),
-      end_date: String(payload.end_date || payload.endDate || "").trim(),
+      start_date: normalizeDateInput(payload.start_date ?? payload.startDate, "start_date"),
+      end_date: normalizeDateInput(payload.end_date ?? payload.endDate, "end_date"),
       multiplier: payload.multiplier,
     };
 
@@ -50,6 +75,8 @@ class PricingService {
     if (!hotelExists) {
       throw createError("Hotel not found", 404, "HOTEL_NOT_FOUND");
     }
+
+    await this.ensureSeasonalPricingDoesNotOverlap(data);
 
     const created = await pricingRepository.createSeasonalPricing(data);
     return toSeasonalPricingResponse(created);
@@ -71,11 +98,11 @@ class PricingService {
         : existing.hotel_id,
       start_date:
         payload.start_date != null || payload.startDate != null
-          ? String(payload.start_date ?? payload.startDate).trim()
+          ? normalizeDateInput(payload.start_date ?? payload.startDate, "start_date")
           : existing.start_date,
       end_date:
         payload.end_date != null || payload.endDate != null
-          ? String(payload.end_date ?? payload.endDate).trim()
+          ? normalizeDateInput(payload.end_date ?? payload.endDate, "end_date")
           : existing.end_date,
       multiplier:
         payload.multiplier != null ? payload.multiplier : existing.multiplier,
@@ -89,6 +116,8 @@ class PricingService {
         throw createError("Hotel not found", 404, "HOTEL_NOT_FOUND");
       }
     }
+
+    await this.ensureSeasonalPricingDoesNotOverlap(merged, id);
 
     const changed = {};
     for (const key in merged) {
@@ -142,7 +171,10 @@ class PricingService {
   async createSpecificDatePricing(payload = {}) {
     const data = {
       room_type_id: Number(payload.room_type_id ?? payload.roomTypeId),
-      specific_date: String(payload.specific_date || payload.specificDate || "").trim(),
+      specific_date: normalizeDateInput(
+        payload.specific_date ?? payload.specificDate,
+        "specific_date",
+      ),
       specific_rate: payload.specific_rate ?? payload.specificRate,
       specific_note: payload.specific_note ?? payload.specificNote ?? null,
     };
@@ -153,6 +185,8 @@ class PricingService {
     if (!roomTypeExists) {
       throw createError("Room type not found", 404, "ROOM_TYPE_NOT_FOUND");
     }
+
+    await this.ensureSpecificDatePricingIsUnique(data);
 
     const created = await pricingRepository.createSpecificDatePricing(data);
     return toSpecificDatePricingResponse(created);
@@ -175,7 +209,7 @@ class PricingService {
           : existing.room_type_id,
       specific_date:
         payload.specific_date != null || payload.specificDate != null
-          ? String(payload.specific_date ?? payload.specificDate).trim()
+          ? normalizeDateInput(payload.specific_date ?? payload.specificDate, "specific_date")
           : existing.specific_date,
       specific_rate:
         payload.specific_rate != null || payload.specificRate != null
@@ -195,6 +229,8 @@ class PricingService {
         throw createError("Room type not found", 404, "ROOM_TYPE_NOT_FOUND");
       }
     }
+
+    await this.ensureSpecificDatePricingIsUnique(merged, id);
 
     const changed = {};
     for (const key in merged) {
@@ -241,7 +277,7 @@ class PricingService {
       throw createError("multiplier must be a positive number", 400, "INVALID_MULTIPLIER");
     }
 
-    if (new Date(data.start_date).getTime() > new Date(data.end_date).getTime()) {
+    if (Date.parse(`${data.start_date}T00:00:00Z`) > Date.parse(`${data.end_date}T00:00:00Z`)) {
       throw createError("start_date must be before or equal to end_date", 400, "INVALID_DATE_RANGE");
     }
   }
@@ -258,6 +294,39 @@ class PricingService {
     const specificRate = Number(data.specific_rate);
     if (!Number.isFinite(specificRate) || specificRate <= 0) {
       throw createError("specific_rate must be a positive number", 400, "INVALID_SPECIFIC_RATE");
+    }
+  }
+
+  async ensureSeasonalPricingDoesNotOverlap(data, excludeId = null) {
+    const overlap = await pricingRepository.findSeasonalPricingOverlap({
+      hotelId: data.hotel_id,
+      startDate: data.start_date,
+      endDate: data.end_date,
+      excludeId,
+    });
+
+    if (overlap) {
+      throw createError(
+        `Seasonal pricing overlaps with existing range ${overlap.start_date} to ${overlap.end_date}`,
+        409,
+        "SEASONAL_PRICING_OVERLAP",
+      );
+    }
+  }
+
+  async ensureSpecificDatePricingIsUnique(data, excludeId = null) {
+    const conflict = await pricingRepository.findSpecificDatePricingConflict({
+      roomTypeId: data.room_type_id,
+      specificDate: data.specific_date,
+      excludeId,
+    });
+
+    if (conflict) {
+      throw createError(
+        `Specific date pricing already exists for ${data.specific_date}`,
+        409,
+        "SPECIFIC_DATE_PRICING_DUPLICATE",
+      );
     }
   }
 }

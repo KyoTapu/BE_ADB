@@ -3,9 +3,7 @@ import { pool } from "../../../../config/db.config.js";
 const returningFields = `
   country_id,
   country_code,
-  country_name,
-  created_at,
-  updated_at
+  country_name
 `;
 
 class CountryRepository {
@@ -61,6 +59,40 @@ class CountryRepository {
     return rows[0];
   }
 
+  async update(id, data) {
+    if (!id) throw new Error("Invalid country_id");
+
+    const fields = [];
+    const values = [];
+    let index = 1;
+
+    if (data.country_code !== undefined) {
+      fields.push(`country_code = $${index++}`);
+      values.push(data.country_code);
+    }
+
+    if (data.country_name !== undefined) {
+      fields.push(`country_name = $${index++}`);
+      values.push(data.country_name);
+    }
+
+    if (!fields.length) {
+      return null;
+    }
+
+    values.push(id);
+
+    const query = `
+      UPDATE country
+      SET ${fields.join(", ")}
+      WHERE country_id = $${index}
+      RETURNING ${returningFields}
+    `;
+
+    const { rows } = await pool.query(query, values);
+    return rows[0] || null;
+  }
+
   async softDelete(id) {
     if (!id) throw new Error("Invalid country_id");
 
@@ -85,6 +117,18 @@ class CountryRepository {
 
     const { rows } = await pool.query(query, [id]);
     return rows[0] || null;
+  }
+
+  async hasHotels(id) {
+    const query = `
+      SELECT 1
+      FROM hotels
+      WHERE country_id = $1
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [id]);
+    return Boolean(rows[0]);
   }
 }
 

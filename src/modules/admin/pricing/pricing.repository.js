@@ -1,20 +1,24 @@
 import { pool } from "../../../../config/db.config.js";
 
 const seasonalReturningFields = `
-  season_id,
-  hotel_id,
-  start_date,
-  end_date,
-  multiplier,
-  updated_at
+  sp.season_id,
+  sp.hotel_id,
+  h.hotel_name,
+  sp.start_date,
+  sp.end_date,
+  sp.multiplier,
+  sp.updated_at
 `;
 
 const specificDateReturningFields = `
-  id,
-  room_type_id,
-  specific_date,
-  specific_rate,
-  specific_note
+  sdp.id,
+  sdp.room_type_id,
+  rt.room_type_name,
+  rt.hotel_id,
+  h.hotel_name,
+  sdp.specific_date,
+  sdp.specific_rate,
+  sdp.specific_note
 `;
 
 class PricingRepository {
@@ -36,17 +40,18 @@ class PricingRepository {
     let index = 1;
     let query = `
       SELECT ${seasonalReturningFields}
-      FROM seasonalpricing
+      FROM seasonalpricing sp
+      INNER JOIN hotels h ON h.hotel_id = sp.hotel_id
       WHERE 1 = 1
     `;
 
     if (hotel_id) {
-      query += ` AND hotel_id = $${index}`;
+      query += ` AND sp.hotel_id = $${index}`;
       values.push(hotel_id);
       index++;
     }
 
-    query += ` ORDER BY start_date ASC, season_id DESC LIMIT $${index} OFFSET $${index + 1}`;
+    query += ` ORDER BY sp.start_date ASC, sp.season_id DESC LIMIT $${index} OFFSET $${index + 1}`;
     values.push(Math.min(Number(limit) || 100, 100), Math.max(Number(offset) || 0, 0));
 
     const { rows } = await pool.query(query, values);
@@ -56,8 +61,9 @@ class PricingRepository {
   async getSeasonalPricingById(id) {
     const query = `
       SELECT ${seasonalReturningFields}
-      FROM seasonalpricing
-      WHERE season_id = $1
+      FROM seasonalpricing sp
+      INNER JOIN hotels h ON h.hotel_id = sp.hotel_id
+      WHERE sp.season_id = $1
     `;
     const { rows } = await pool.query(query, [id]);
     return rows[0] || null;
@@ -72,12 +78,12 @@ class PricingRepository {
         multiplier
       )
       VALUES ($1, $2, $3, $4)
-      RETURNING ${seasonalReturningFields}
+      RETURNING season_id
     `;
 
     const values = [data.hotel_id, data.start_date, data.end_date, data.multiplier];
     const { rows } = await pool.query(query, values);
-    return rows[0];
+    return this.getSeasonalPricingById(rows[0]?.season_id);
   }
 
   async updateSeasonalPricing(id, data) {
@@ -100,12 +106,16 @@ class PricingRepository {
       SET ${fields.join(", ")},
           updated_at = CURRENT_TIMESTAMP
       WHERE season_id = $${index}
-      RETURNING ${seasonalReturningFields}
+      RETURNING season_id
     `;
 
     values.push(id);
     const { rows } = await pool.query(query, values);
-    return rows[0] || null;
+    if (!rows[0]?.season_id) {
+      return null;
+    }
+
+    return this.getSeasonalPricingById(rows[0].season_id);
   }
 
   async deleteSeasonalPricing(id) {
@@ -118,22 +128,30 @@ class PricingRepository {
     return rows[0] || null;
   }
 
-  async getAllSpecificDatePricing({ room_type_id, limit = 100, offset = 0 } = {}) {
+  async getAllSpecificDatePricing({ hotel_id, room_type_id, limit = 100, offset = 0 } = {}) {
     const values = [];
     let index = 1;
     let query = `
       SELECT ${specificDateReturningFields}
-      FROM specialdatepricing
+      FROM specialdatepricing sdp
+      INNER JOIN room_type rt ON rt.room_type_id = sdp.room_type_id
+      INNER JOIN hotels h ON h.hotel_id = rt.hotel_id
       WHERE 1 = 1
     `;
 
+    if (hotel_id) {
+      query += ` AND rt.hotel_id = $${index}`;
+      values.push(hotel_id);
+      index++;
+    }
+
     if (room_type_id) {
-      query += ` AND room_type_id = $${index}`;
+      query += ` AND sdp.room_type_id = $${index}`;
       values.push(room_type_id);
       index++;
     }
 
-    query += ` ORDER BY specific_date ASC, id DESC LIMIT $${index} OFFSET $${index + 1}`;
+    query += ` ORDER BY sdp.specific_date ASC, sdp.id DESC LIMIT $${index} OFFSET $${index + 1}`;
     values.push(Math.min(Number(limit) || 100, 100), Math.max(Number(offset) || 0, 0));
 
     const { rows } = await pool.query(query, values);
@@ -143,8 +161,10 @@ class PricingRepository {
   async getSpecificDatePricingById(id) {
     const query = `
       SELECT ${specificDateReturningFields}
-      FROM specialdatepricing
-      WHERE id = $1
+      FROM specialdatepricing sdp
+      INNER JOIN room_type rt ON rt.room_type_id = sdp.room_type_id
+      INNER JOIN hotels h ON h.hotel_id = rt.hotel_id
+      WHERE sdp.id = $1
     `;
     const { rows } = await pool.query(query, [id]);
     return rows[0] || null;
@@ -159,12 +179,12 @@ class PricingRepository {
         specific_note
       )
       VALUES ($1, $2, $3, $4)
-      RETURNING ${specificDateReturningFields}
+      RETURNING id
     `;
 
     const values = [data.room_type_id, data.specific_date, data.specific_rate, data.specific_note];
     const { rows } = await pool.query(query, values);
-    return rows[0];
+    return this.getSpecificDatePricingById(rows[0]?.id);
   }
 
   async updateSpecificDatePricing(id, data) {
@@ -186,12 +206,16 @@ class PricingRepository {
       UPDATE specialdatepricing
       SET ${fields.join(", ")}
       WHERE id = $${index}
-      RETURNING ${specificDateReturningFields}
+      RETURNING id
     `;
 
     values.push(id);
     const { rows } = await pool.query(query, values);
-    return rows[0] || null;
+    if (!rows[0]?.id) {
+      return null;
+    }
+
+    return this.getSpecificDatePricingById(rows[0].id);
   }
 
   async deleteSpecificDatePricing(id) {
@@ -228,6 +252,56 @@ class PricingRepository {
       [roomTypeId],
     );
     return Boolean(rows[0]);
+  }
+
+  async findSeasonalPricingOverlap({ hotelId, startDate, endDate, excludeId = null }) {
+    const values = [hotelId, startDate, endDate];
+    let query = `
+      SELECT ${seasonalReturningFields}
+      FROM seasonalpricing sp
+      INNER JOIN hotels h ON h.hotel_id = sp.hotel_id
+      WHERE sp.hotel_id = $1
+        AND sp.start_date <= $3
+        AND sp.end_date >= $2
+    `;
+
+    if (excludeId != null) {
+      values.push(excludeId);
+      query += ` AND sp.season_id <> $4`;
+    }
+
+    query += `
+      ORDER BY sp.start_date ASC, sp.season_id DESC
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, values);
+    return rows[0] || null;
+  }
+
+  async findSpecificDatePricingConflict({ roomTypeId, specificDate, excludeId = null }) {
+    const values = [roomTypeId, specificDate];
+    let query = `
+      SELECT ${specificDateReturningFields}
+      FROM specialdatepricing sdp
+      INNER JOIN room_type rt ON rt.room_type_id = sdp.room_type_id
+      INNER JOIN hotels h ON h.hotel_id = rt.hotel_id
+      WHERE sdp.room_type_id = $1
+        AND sdp.specific_date = $2
+    `;
+
+    if (excludeId != null) {
+      values.push(excludeId);
+      query += ` AND sdp.id <> $3`;
+    }
+
+    query += `
+      ORDER BY sdp.id DESC
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, values);
+    return rows[0] || null;
   }
 }
 

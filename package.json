@@ -7,7 +7,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js",
-    "gen:module": "node scripts/create-module.js"
+    "gen:module": "node scripts/create-module.js",
+    "sync:inventory": "node scripts/sync-room-inventory.js"
   },
   "repository": {
     "type": "git",
@@ -24,7 +25,9 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.2.0",
     "nodemon": "^3.1.14",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "redis": "^5.12.1"
   }
 }

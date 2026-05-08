@@ -14,10 +14,13 @@ CREATE TABLE public.User (
 );
 CREATE TABLE public.amenities (
   amenity_id integer NOT NULL DEFAULT nextval('amenities_amenity_id_seq'::regclass),
-  room_type_id integer,
+  hotel_id integer,
   amenity_name character varying,
+  amenity_description text,
+  created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT amenities_pkey PRIMARY KEY (amenity_id),
-  CONSTRAINT amenities_room_type_id_fkey FOREIGN KEY (room_type_id) REFERENCES public.room_type(room_type_id)
+  CONSTRAINT amenities_hotel_id_fkey FOREIGN KEY (hotel_id) REFERENCES public.hotels(hotel_id)
 );
 CREATE TABLE public.booking (
   id integer NOT NULL DEFAULT nextval('booking_id_seq'::regclass),
@@ -86,6 +89,13 @@ CREATE TABLE public.room_type_service (
   CONSTRAINT room_type_service_pkey PRIMARY KEY (room_type_id, service_id),
   CONSTRAINT room_type_service_room_type_id_fkey FOREIGN KEY (room_type_id) REFERENCES public.room_type(room_type_id),
   CONSTRAINT room_type_service_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(service_id)
+);
+CREATE TABLE public.room_type_amenity (
+  room_type_id integer NOT NULL,
+  amenity_id integer NOT NULL,
+  CONSTRAINT room_type_amenity_pkey PRIMARY KEY (room_type_id, amenity_id),
+  CONSTRAINT room_type_amenity_room_type_id_fkey FOREIGN KEY (room_type_id) REFERENCES public.room_type(room_type_id),
+  CONSTRAINT room_type_amenity_amenity_id_fkey FOREIGN KEY (amenity_id) REFERENCES public.amenities(amenity_id)
 );
 CREATE TABLE public.rooms (
   room_id integer NOT NULL DEFAULT nextval('rooms_room_id_seq'::regclass),

@@ -11,6 +11,8 @@ import { paymentRouter } from "./src/modules/client/payment/index.js";
 
 import { hotelsRouter as adminHotelsRouter } from "./src/modules/admin/hotels/index.js";
 import { pricingRouter as adminPricingRouter } from "./src/modules/admin/pricing/index.js";
+import { searchindexRouter } from "./src/modules/admin/searchindex/index.js";
+import { specificpricingRouter } from "./src/modules/admin/specificpricing/index.js";
 import { hotelsRouter as clientHotelsRouter } from "./src/modules/client/hotels/index.js";
 import { roomRouter as adminRoomRouter } from "./src/modules/admin/room/index.js";
 
@@ -51,6 +53,8 @@ app.use("/api/admin/room-type", adminRoomRouter);
 app.use("/api/admin/amenities", amenitiesRouter);
 app.use("/api/admin/facilities", facilitiesRouter);
 app.use("/api/admin/pricing", adminPricingRouter);
+app.use("/api/admin/specific-date-pricing", specificpricingRouter);
+app.use("/api/admin/search-index", searchindexRouter);
 
 app.use("/api/client/hotels", clientHotelsRouter);
 

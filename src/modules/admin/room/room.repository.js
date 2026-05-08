@@ -26,7 +26,7 @@ const roomReturning = `
 
 const amenityReturning = `
   amenity_id,
-  room_type_id,
+  hotel_id,
   amenity_name,
   amenity_description,
   created_at,
@@ -143,13 +143,29 @@ class RoomRepository {
     if (!roomTypeIds.length) return [];
 
     const query = `
-      SELECT ${amenityReturning}
-      FROM amenities
-      WHERE room_type_id = ANY($1::int[])
-      ORDER BY amenity_id DESC
+      SELECT
+        rta.room_type_id,
+        ${amenityReturning}
+      FROM room_type_amenity rta
+      JOIN amenities a ON a.amenity_id = rta.amenity_id
+      WHERE rta.room_type_id = ANY($1::int[])
+      ORDER BY a.amenity_id DESC
     `;
 
     const { rows } = await client.query(query, [roomTypeIds]);
+    return rows;
+  }
+
+  async getAmenitiesByIds(amenityIds, client = pool) {
+    if (!amenityIds.length) return [];
+
+    const query = `
+      SELECT ${amenityReturning}
+      FROM amenities
+      WHERE amenity_id = ANY($1::int[])
+    `;
+
+    const { rows } = await client.query(query, [amenityIds]);
     return rows;
   }
 
@@ -210,22 +226,22 @@ class RoomRepository {
     await client.query(query, values);
   }
 
-  async replaceRoomTypeAmenities(roomTypeId, amenities, client = pool) {
-    await client.query("DELETE FROM amenities WHERE room_type_id = $1", [roomTypeId]);
+  async replaceRoomTypeAmenities(roomTypeId, amenityIds, client = pool) {
+    await client.query("DELETE FROM room_type_amenity WHERE room_type_id = $1", [roomTypeId]);
 
-    if (!amenities.length) {
+    if (!amenityIds.length) {
       return;
     }
 
     const values = [];
-    const placeholders = amenities.map((amenity, index) => {
-      const baseIndex = index * 3;
-      values.push(roomTypeId, amenity.name, amenity.description || null);
-      return `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3})`;
+    const placeholders = amenityIds.map((amenityId, index) => {
+      const baseIndex = index * 2;
+      values.push(roomTypeId, amenityId);
+      return `($${baseIndex + 1}, $${baseIndex + 2})`;
     });
 
     const query = `
-      INSERT INTO amenities (room_type_id, amenity_name, amenity_description)
+      INSERT INTO room_type_amenity (room_type_id, amenity_id)
       VALUES ${placeholders.join(", ")}
     `;
 
@@ -234,7 +250,7 @@ class RoomRepository {
 
   async deleteRoomTypeRelations(roomTypeId, client = pool) {
     await client.query("DELETE FROM room_type_service WHERE room_type_id = $1", [roomTypeId]);
-    await client.query("DELETE FROM amenities WHERE room_type_id = $1", [roomTypeId]);
+    await client.query("DELETE FROM room_type_amenity WHERE room_type_id = $1", [roomTypeId]);
   }
 
   baseRoom = `
