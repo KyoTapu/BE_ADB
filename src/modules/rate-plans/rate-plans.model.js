@@ -1,0 +1,27 @@
+export const ratePlansModel = {
+  moduleName: "rate-plans",
+  tableName: "public.rate_plans",
+  primaryKey: "id",
+  routePath: "/api/rate-plans",
+  defaultOrderBy: "created_at",
+  filterableFields: ["id", "hotel_id", "code", "refundable", "meal_plan", "active"],
+  searchableFields: ["code", "name", "cancellation_policy", "meal_plan"],
+  createFields: [
+    "hotel_id",
+    "code",
+    "name",
+    "refundable",
+    "cancellation_policy",
+    "meal_plan",
+    "active",
+  ],
+  updateFields: [
+    "hotel_id",
+    "code",
+    "name",
+    "refundable",
+    "cancellation_policy",
+    "meal_plan",
+    "active",
+  ],
+};

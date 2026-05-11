@@ -1,0 +1,27 @@
+export const paymentsModel = {
+  moduleName: "payments",
+  tableName: "public.payments",
+  primaryKey: "id",
+  routePath: "/api/payments",
+  defaultOrderBy: "created_at",
+  filterableFields: ["id", "booking_id", "payment_method", "provider", "payment_status"],
+  searchableFields: ["transaction_id", "provider", "payment_method"],
+  createFields: [
+    "booking_id",
+    "payment_method",
+    "provider",
+    "transaction_id",
+    "amount",
+    "payment_status",
+    "paid_at",
+  ],
+  updateFields: [
+    "booking_id",
+    "payment_method",
+    "provider",
+    "transaction_id",
+    "amount",
+    "payment_status",
+    "paid_at",
+  ],
+};

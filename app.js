@@ -1,29 +1,20 @@
 import express from "express";
+import { env } from "./src/configs/env.js";
 import { sendError } from "./src/common/response.js";
-import { authRouter as adminAuthRouter } from "./src/modules/admin/auth/index.js";
-import { amenitiesRouter } from "./src/modules/admin/amenities/index.js";
-import { countryRouter as adminCountryRouter } from "./src/modules/admin/country/index.js";
-import { facilitiesRouter } from "./src/modules/admin/facilities/index.js";
-import { userRouter as adminUserRouter } from "./src/modules/admin/user/index.js";
-import { authRouter as clientAuthRouter } from "./src/modules/client/auth/index.js";
-import { bookingRouter } from "./src/modules/client/booking/index.js";
-import { paymentRouter } from "./src/modules/client/payment/index.js";
+import { modules } from "./src/modules/index.js";
+import dns from "dns";
 
-import { hotelsRouter as adminHotelsRouter } from "./src/modules/admin/hotels/index.js";
-import { pricingRouter as adminPricingRouter } from "./src/modules/admin/pricing/index.js";
-import { searchindexRouter } from "./src/modules/admin/searchindex/index.js";
-import { specificpricingRouter } from "./src/modules/admin/specificpricing/index.js";
-import { hotelsRouter as clientHotelsRouter } from "./src/modules/client/hotels/index.js";
-import { roomRouter as adminRoomRouter } from "./src/modules/admin/room/index.js";
+const defaultOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const allowedOrigins = new Set([...defaultOrigins, ...env.corsOrigins]);
 
-const allowedOrigins = new Set([
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-]);
-
-if (process.env.URL) {
-  allowedOrigins.add(process.env.URL);
+if (env.appUrl) {
+  allowedOrigins.add(env.appUrl);
 }
+
+dns.setServers([
+  '1.1.1.1',
+  '8.8.8.8'
+])
 
 const app = express();
 
@@ -46,26 +37,15 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-app.use("/api/admin/users", adminUserRouter);
-app.use("/api/admin/hotels", adminHotelsRouter);
-app.use("/api/admin/country", adminCountryRouter);
-app.use("/api/admin/room-type", adminRoomRouter);
-app.use("/api/admin/amenities", amenitiesRouter);
-app.use("/api/admin/facilities", facilitiesRouter);
-app.use("/api/admin/pricing", adminPricingRouter);
-app.use("/api/admin/specific-date-pricing", specificpricingRouter);
-app.use("/api/admin/search-index", searchindexRouter);
 
-app.use("/api/client/hotels", clientHotelsRouter);
+for (const module of modules) {
+  app.use(module.routePath, module.router);
+}
 
-app.use("/api/admin/auth", adminAuthRouter);
-app.use("/api/client/auth", clientAuthRouter);
-app.use("/api/booking", bookingRouter);
-app.use("/api/payment", paymentRouter);
-
-app.use("/", (req, res) => {
+app.get("/", (req, res) => {
   res.json({
-    message: "hello",
+    message: "Pullman booking backend is running",
+    modules: modules.map((module) => module.moduleName),
   });
 });
 

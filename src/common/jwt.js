@@ -1,41 +1,34 @@
 import jwt from "jsonwebtoken";
+import { AppError } from "./errors.js";
+import { env } from "../configs/env.js";
 
 const normalizeExpiresIn = (rawValue) => {
   const normalized = String(rawValue || "1d").trim().toLowerCase();
   return normalized === "1day" ? "1d" : normalized;
 };
 
-export const signAccessToken = (payload) => {
-  const secret = process.env.JWT_ACCESS_SECRET;
-
-  if (!secret) {
-    const error = new Error("JWT_ACCESS_SECRET is missing");
-    error.status = 500;
-    error.code = "JWT_SECRET_MISSING";
-    throw error;
+const getJwtSecret = () => {
+  if (!env.jwtAccessSecret) {
+    throw new AppError("JWT_ACCESS_SECRET is missing", 500, "JWT_SECRET_MISSING");
   }
 
-  return jwt.sign(payload, secret, {
-    expiresIn: normalizeExpiresIn(process.env.JWT_EXPIRES_IN),
+  return env.jwtAccessSecret;
+};
+
+export const signAccessToken = (payload) => {
+  return jwt.sign(payload, getJwtSecret(), {
+    expiresIn: normalizeExpiresIn(env.jwtExpiresIn),
   });
 };
 
 export const verifyAccessToken = (token) => {
-  const secret = process.env.JWT_ACCESS_SECRET;
-
-  if (!secret) {
-    const error = new Error("JWT_ACCESS_SECRET is missing");
-    error.status = 500;
-    error.code = "JWT_SECRET_MISSING";
-    throw error;
-  }
-
   try {
-    return jwt.verify(token, secret);
-  } catch (err) {
-    const error = new Error("Invalid or expired token");
-    error.status = 401;
-    error.code = err?.name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "INVALID_TOKEN";
-    throw error;
+    return jwt.verify(token, getJwtSecret());
+  } catch (error) {
+    throw new AppError(
+      "Invalid or expired token",
+      401,
+      error?.name === "TokenExpiredError" ? "TOKEN_EXPIRED" : "INVALID_TOKEN",
+    );
   }
 };

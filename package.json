@@ -1,14 +1,17 @@
 {
   "name": "be_adb",
   "version": "1.0.0",
-  "description": "",
+  "description": "Pullman booking backend",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
     "dev": "nodemon index.js",
     "gen:module": "node scripts/create-module.js",
-    "sync:inventory": "node scripts/sync-room-inventory.js"
+    "sync:inventory": "node scripts/sync-room-inventory.js",
+    "seed:search-ready": "node scripts/seed-search-ready.js",
+    "setup:mongo": "node scripts/setup-mongo.js",
+    "setup:redis": "node scripts/setup-redis.js"
   },
   "repository": {
     "type": "git",

@@ -1,20 +1,16 @@
 import { verifyAccessToken } from "./jwt.js";
+import { forbidden, unauthorized } from "./errors.js";
 
 export const authenticate = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || "";
 
     if (!authHeader.startsWith("Bearer ")) {
-      const error = new Error("Missing bearer token");
-      error.status = 401;
-      error.code = "MISSING_BEARER_TOKEN";
-      throw error;
+      throw unauthorized("Missing bearer token", "MISSING_BEARER_TOKEN");
     }
 
     const token = authHeader.slice(7).trim();
-    const payload = verifyAccessToken(token);
-
-    req.user = payload;
+    req.user = verifyAccessToken(token);
     return next();
   } catch (error) {
     return next(error);
@@ -26,21 +22,11 @@ export const authorize =
   (req, res, next) => {
     try {
       if (!req.user) {
-        const error = new Error("Unauthenticated");
-        error.status = 401;
-        error.code = "UNAUTHENTICATED";
-        throw error;
+        throw unauthorized("Unauthenticated", "UNAUTHENTICATED");
       }
 
-      if (allowedRoles.length === 0) {
-        return next();
-      }
-
-      if (!allowedRoles.includes(req.user.role)) {
-        const error = new Error("Forbidden");
-        error.status = 403;
-        error.code = "FORBIDDEN";
-        throw error;
+      if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
+        throw forbidden("Forbidden", "FORBIDDEN");
       }
 
       return next();

@@ -1,0 +1,25 @@
+export const roomsModel = {
+  moduleName: "rooms",
+  tableName: "public.rooms",
+  primaryKey: "id",
+  routePath: "/api/rooms",
+  defaultOrderBy: "created_at",
+  filterableFields: ["id", "hotel_id", "room_type_id", "room_status", "housekeeping_status", "room_number"],
+  searchableFields: ["room_number"],
+  createFields: [
+    "hotel_id",
+    "room_type_id",
+    "room_number",
+    "floor_number",
+    "room_status",
+    "housekeeping_status",
+  ],
+  updateFields: [
+    "hotel_id",
+    "room_type_id",
+    "room_number",
+    "floor_number",
+    "room_status",
+    "housekeeping_status",
+  ],
+};

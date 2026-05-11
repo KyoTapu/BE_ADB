@@ -7,6 +7,7 @@ import { connectRedis } from "./config/redis.config.js";
 
 dotenv.config();
 
+
 const PORT = Number(process.env.PORT) || 3000;
 
 const startServer = async () => {
