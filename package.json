@@ -9,6 +9,7 @@
     "dev": "nodemon index.js",
     "gen:module": "node scripts/create-module.js",
     "sync:inventory": "node scripts/sync-room-inventory.js",
+    "sync:search-index": "node scripts/sync-search-index.js",
     "seed:search-ready": "node scripts/seed-search-ready.js",
     "setup:mongo": "node scripts/setup-mongo.js",
     "setup:redis": "node scripts/setup-redis.js"

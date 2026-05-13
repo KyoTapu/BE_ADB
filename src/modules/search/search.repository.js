@@ -1,7 +1,15 @@
 import { query } from "../../configs/postgres.js";
 
 export const searchRepository = {
-  async searchAvailability({ hotelId, roomTypeId, checkIn, checkOut, guests = 1 }) {
+  async searchAvailability({
+    hotelId,
+    roomTypeId,
+    checkIn,
+    checkOut,
+    guests = 1,
+    candidateHotelIds = [],
+    candidateRoomTypeIds = [],
+  }) {
     const params = [checkIn, checkOut, Number(guests) || 1];
     const conditions = [
       "COALESCE(rt.max_adults, 0) + COALESCE(rt.max_children, 0) >= $3",
@@ -15,6 +23,16 @@ export const searchRepository = {
     if (roomTypeId) {
       params.push(roomTypeId);
       conditions.push(`rt.id = $${params.length}`);
+    }
+
+    if (Array.isArray(candidateHotelIds) && candidateHotelIds.length) {
+      params.push(candidateHotelIds.map(String));
+      conditions.push(`h.id::text = ANY($${params.length}::text[])`);
+    }
+
+    if (Array.isArray(candidateRoomTypeIds) && candidateRoomTypeIds.length) {
+      params.push(candidateRoomTypeIds.map(String));
+      conditions.push(`rt.id::text = ANY($${params.length}::text[])`);
     }
 
     const { rows } = await query(
@@ -69,5 +87,83 @@ export const searchRepository = {
     );
 
     return rows;
+  },
+
+  async getSearchIndexDocuments() {
+    const { rows } = await query(
+      `
+        SELECT
+          h.id AS hotel_id,
+          h.name AS hotel_name,
+          h.city,
+          h.country,
+          h.star_rating,
+          h.status AS hotel_status,
+          rt.id AS room_type_id,
+          rt.name AS room_type_name,
+          rt.description,
+          rt.bed_type,
+          rt.base_price,
+          rt.max_adults,
+          rt.max_children,
+          COALESCE(
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT a.name), NULL),
+            '{}'
+          ) AS amenity_names,
+          COALESCE(
+            ARRAY_REMOVE(ARRAY_AGG(DISTINCT f.name), NULL),
+            '{}'
+          ) AS facility_names
+        FROM public.hotels h
+        INNER JOIN public.room_types rt ON rt.hotel_id = h.id
+        LEFT JOIN public.room_type_amenities rta ON rta.room_type_id = rt.id
+        LEFT JOIN public.amenities a ON a.id = rta.amenity_id
+        LEFT JOIN public.room_type_facilities rtf ON rtf.room_type_id = rt.id
+        LEFT JOIN public.facilities f ON f.id = rtf.facility_id AND f.is_active = true
+        WHERE h.status = 'active'
+        GROUP BY
+          h.id,
+          h.name,
+          h.city,
+          h.country,
+          h.star_rating,
+          h.status,
+          rt.id,
+          rt.name,
+          rt.description,
+          rt.bed_type,
+          rt.base_price,
+          rt.max_adults,
+          rt.max_children
+        ORDER BY h.id, rt.id
+      `,
+    );
+
+    return rows.map((row) => {
+      const amenities = Array.isArray(row.amenity_names) ? row.amenity_names.filter(Boolean) : [];
+      const services = Array.isArray(row.facility_names) ? row.facility_names.filter(Boolean) : [];
+      const maxGuests = Number(row.max_adults || 0) + Number(row.max_children || 0);
+
+      return {
+        id: `room-type:${row.room_type_id}`,
+        hotelId: String(row.hotel_id),
+        roomTypeId: String(row.room_type_id),
+        hotelName: row.hotel_name || "",
+        city: row.city || "",
+        country: row.country || "",
+        roomTypeName: row.room_type_name || "",
+        bedType: row.bed_type || "",
+        description: row.description || "",
+        amenities,
+        amenitiesText: amenities.join(", "),
+        services,
+        servicesText: services.join(", "),
+        starRating: Number(row.star_rating) || 0,
+        basePrice: Number(row.base_price) || 0,
+        maxGuests,
+        active: row.hotel_status === "active",
+        indexedAt: new Date().toISOString(),
+      };
+    });
   },
 };
