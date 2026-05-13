@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import { conflict, notFound, badRequest } from "../../common/errors.js";
 import { getMongoCollection } from "../../configs/mongodb.js";
 import { buildInventoryLockKey, connectRedis } from "../../configs/redis.js";
+import { paymentsService } from "../payments/payments.service.js";
+import { isVnpayConfigured } from "../payments/vnpay.js";
 import { pricingService } from "../pricing/pricing.service.js";
 import { bookingsModel } from "./bookings.model.js";
 import { bookingsRepository } from "./bookings.repository.js";
@@ -58,12 +60,17 @@ export const bookingsService = {
 
   async create(payload = {}) {
     const customer = payload.customer || {};
+    const normalizedPaymentMethod = String(payload.paymentMethod || "pay_at_hotel").trim().toLowerCase();
     const firstName = String(customer.firstName || "").trim();
     const lastName = String(customer.lastName || "").trim();
     const email = String(customer.email || "").trim();
 
     if (!firstName || !lastName || !email) {
       throw badRequest("Customer firstName, lastName and email are required", "MISSING_CUSTOMER_FIELDS");
+    }
+
+    if (normalizedPaymentMethod === "vnpay" && !isVnpayConfigured()) {
+      throw badRequest("VNPay is not configured on the server", "VNPAY_NOT_CONFIGURED");
     }
 
     const quote = await pricingService.quote(payload);
@@ -96,8 +103,10 @@ export const bookingsService = {
         taxAmount: quote.charges.taxAmount,
         serviceChargeAmount: quote.charges.serviceCharge,
         finalAmount: quote.charges.finalAmount,
-        currency: payload.currency || "USD",
-        bookingStatus: payload.bookingStatus || "CONFIRMED",
+        currency: payload.currency || "VND",
+        bookingStatus:
+          payload.bookingStatus ||
+          (normalizedPaymentMethod === "vnpay" ? "PENDING" : "CONFIRMED"),
         paymentStatus: payload.paymentStatus || "PENDING",
         sourceChannel: payload.sourceChannel || "DIRECT",
         adults: Number(payload.adults) || 1,
@@ -133,8 +142,27 @@ export const bookingsService = {
         console.warn("Pricing history log unavailable:", error.message);
       }
 
+      const payment = await paymentsService.createInternalPayment({
+        bookingId: booking.id,
+        amount: quote.charges.finalAmount,
+        paymentMethod: normalizedPaymentMethod,
+        bookingNumber: booking.booking_number,
+      });
+
+      let paymentRedirectUrl = null;
+      if (normalizedPaymentMethod === "vnpay") {
+        paymentRedirectUrl = await paymentsService.createVnpayPaymentUrl({
+          booking,
+          payment,
+          amount: quote.charges.finalAmount,
+          ipAddress: payload.ipAddress || "127.0.0.1",
+        });
+      }
+
       return {
         booking,
+        payment,
+        paymentRedirectUrl,
         quote,
       };
     } finally {

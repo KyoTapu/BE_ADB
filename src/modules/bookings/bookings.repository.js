@@ -165,6 +165,26 @@ export const bookingsRepository = {
     return rows[0] || null;
   },
 
+  async getBookingSummary(id) {
+    const { rows } = await query(
+      `
+        SELECT
+          b.*,
+          h.name AS hotel_name,
+          rt.name AS room_type_name
+        FROM public.bookings b
+        LEFT JOIN public.hotels h ON h.id = b.hotel_id
+        LEFT JOIN public.booking_items bi ON bi.booking_id = b.id
+        LEFT JOIN public.room_types rt ON rt.id = bi.room_type_id
+        WHERE b.id = $1
+        LIMIT 1
+      `,
+      [id],
+    );
+
+    return rows[0] || null;
+  },
+
   async update(id, payload = {}, model) {
     const updates = {};
 
@@ -397,5 +417,70 @@ export const bookingsRepository = {
 
       return bookingResult.rows[0];
     });
+  },
+
+  async updateBookingPaymentState(bookingId, payload = {}) {
+    const values = [];
+    const updates = [];
+
+    if (payload.bookingStatus !== undefined) {
+      values.push(payload.bookingStatus);
+      updates.push(`booking_status = $${values.length}`);
+    }
+
+    if (payload.paymentStatus !== undefined) {
+      values.push(payload.paymentStatus);
+      updates.push(`payment_status = $${values.length}`);
+    }
+
+    if (!updates.length) {
+      return this.getById(bookingId);
+    }
+
+    values.push(bookingId);
+
+    const { rows } = await query(
+      `
+        UPDATE public.bookings
+        SET ${updates.join(", ")}
+        WHERE id = $${values.length}
+        RETURNING *
+      `,
+      values,
+    );
+
+    return rows[0] || null;
+  },
+
+  async restoreInventoryForBooking(bookingId) {
+    const { rows } = await query(
+      `
+        SELECT bi.room_type_id, b.checkin_date, b.checkout_date
+        FROM public.bookings b
+        INNER JOIN public.booking_items bi ON bi.booking_id = b.id
+        WHERE b.id = $1
+        LIMIT 1
+      `,
+      [bookingId],
+    );
+
+    const booking = rows[0];
+    if (!booking) {
+      return { restored: false };
+    }
+
+    await query(
+      `
+        UPDATE public.daily_inventory
+        SET sold_inventory = GREATEST(sold_inventory - 1, 0),
+            available_inventory = available_inventory + 1
+        WHERE room_type_id = $1::uuid
+          AND inventory_date >= $2::date
+          AND inventory_date < $3::date
+      `,
+      [booking.room_type_id, booking.checkin_date, booking.checkout_date],
+    );
+
+    return { restored: true };
   },
 };

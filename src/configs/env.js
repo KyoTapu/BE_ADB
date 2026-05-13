@@ -11,6 +11,7 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: toNumber(process.env.PORT, 3000),
   appUrl: process.env.URL || process.env.APP_URL || "",
+  clientAppUrl: process.env.CLIENT_APP_URL || "http://localhost:5173",
   corsOrigins: String(process.env.CORS_ORIGINS || "")
     .split(",")
     .map((value) => value.trim())
@@ -26,6 +27,12 @@ export const env = {
   elasticsearchIndex: process.env.ELASTICSEARCH_INDEX || "hotel_room_inventory",
   elasticsearchUsername: process.env.ELASTICSEARCH_USERNAME || "",
   elasticsearchPassword: process.env.ELASTICSEARCH_PASSWORD || "",
+  vnpayTmnCode: process.env.VNPAY_TMN_CODE || "",
+  vnpayHashSecret: process.env.VNPAY_HASH_SECRET || "",
+  vnpayPaymentUrl:
+    process.env.VNPAY_PAYMENT_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+  vnpayReturnUrl: process.env.VNPAY_RETURN_URL || "",
+  vnpayIpnUrl: process.env.VNPAY_IPN_URL || "",
   redisUrl: process.env.REDIS_URL || "",
   redisHost: process.env.REDIS_HOST || "127.0.0.1",
   redisPort: toNumber(process.env.REDIS_PORT, 6379),

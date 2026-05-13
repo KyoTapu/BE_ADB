@@ -1,5 +1,6 @@
 import { sendSuccess } from "../../common/response.js";
 import { bookingsService } from "./bookings.service.js";
+import { getRequestIp } from "../payments/vnpay.js";
 
 export const bookingsController = {
   async myHistory(req, res, next) {
@@ -36,7 +37,14 @@ export const bookingsController = {
 
   async create(req, res, next) {
     try {
-      return sendSuccess(res, await bookingsService.create(req.body), 201);
+      return sendSuccess(
+        res,
+        await bookingsService.create({
+          ...req.body,
+          ipAddress: getRequestIp(req),
+        }),
+        201,
+      );
     } catch (error) {
       return next(error);
     }
