@@ -41,6 +41,7 @@ export const bookingsController = {
         res,
         await bookingsService.create({
           ...req.body,
+          authUser: req.user,
           ipAddress: getRequestIp(req),
         }),
         201,

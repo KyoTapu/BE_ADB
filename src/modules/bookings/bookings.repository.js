@@ -185,6 +185,68 @@ export const bookingsRepository = {
     return rows[0] || null;
   },
 
+  async getBookingEmailContext(id) {
+    const { rows } = await query(
+      `
+        SELECT
+          b.id,
+          b.booking_number,
+          b.checkin_date,
+          b.checkout_date,
+          b.subtotal_amount,
+          b.discount_amount,
+          b.tax_amount,
+          b.service_charge_amount,
+          b.final_amount,
+          b.currency,
+          h.name AS hotel_name,
+          rt.name AS room_type_name,
+          c.email AS customer_email,
+          CONCAT_WS(' ', c.first_name, c.last_name) AS customer_name,
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', f.id,
+                'name', f.name,
+                'quantity', bf.quantity,
+                'unitPrice', bf.unit_price,
+                'totalPrice', bf.total_price
+              )
+            ) FILTER (WHERE f.id IS NOT NULL),
+            '[]'::json
+          ) AS facilities
+        FROM public.bookings b
+        LEFT JOIN public.hotels h ON h.id = b.hotel_id
+        LEFT JOIN public.booking_items bi ON bi.booking_id = b.id
+        LEFT JOIN public.room_types rt ON rt.id = bi.room_type_id
+        LEFT JOIN public.customers c ON c.id = b.customer_id
+        LEFT JOIN public.booking_facilities bf ON bf.booking_id = b.id
+        LEFT JOIN public.facilities f ON f.id = bf.facility_id
+        WHERE b.id = $1
+        GROUP BY
+          b.id,
+          b.booking_number,
+          b.checkin_date,
+          b.checkout_date,
+          b.subtotal_amount,
+          b.discount_amount,
+          b.tax_amount,
+          b.service_charge_amount,
+          b.final_amount,
+          b.currency,
+          h.name,
+          rt.name,
+          c.email,
+          c.first_name,
+          c.last_name
+        LIMIT 1
+      `,
+      [id],
+    );
+
+    return rows[0] || null;
+  },
+
   async update(id, payload = {}, model) {
     const updates = {};
 

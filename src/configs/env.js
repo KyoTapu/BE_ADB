@@ -40,6 +40,17 @@ export const env = {
   redisPassword: process.env.REDIS_PASSWORD || "",
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET || "",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1d",
+  smtpHost: process.env.SMTP_HOST || "",
+  smtpPort: toNumber(process.env.SMTP_PORT, 587),
+  smtpSecure: String(process.env.SMTP_SECURE || "false").toLowerCase() === "true",
+  smtpUser: process.env.SMTP_USER || "",
+  smtpPass: process.env.SMTP_PASS || "",
+  smtpFromName: process.env.SMTP_FROM_NAME || "Pullman Hotel",
+  smtpFromEmail: process.env.SMTP_FROM_EMAIL || "",
+  smtpOauthClientId: process.env.SMTP_OAUTH_CLIENT_ID || "",
+  smtpOauthClientSecret: process.env.SMTP_OAUTH_CLIENT_SECRET || "",
+  smtpOauthRefreshToken: process.env.SMTP_OAUTH_REFRESH_TOKEN || "",
+  smtpOauthAccessToken: process.env.SMTP_OAUTH_ACCESS_TOKEN || "",
 };
 
 export const isProduction = env.nodeEnv === "production";

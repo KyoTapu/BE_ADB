@@ -60,10 +60,12 @@ export const bookingsService = {
 
   async create(payload = {}) {
     const customer = payload.customer || {};
+    const authUser = payload.authUser || {};
     const normalizedPaymentMethod = String(payload.paymentMethod || "pay_at_hotel").trim().toLowerCase();
     const firstName = String(customer.firstName || "").trim();
     const lastName = String(customer.lastName || "").trim();
-    const email = String(customer.email || "").trim();
+    const authenticatedEmail = String(authUser.email || "").trim();
+    const email = String(authenticatedEmail || customer.email || "").trim();
 
     if (!firstName || !lastName || !email) {
       throw badRequest("Customer firstName, lastName and email are required", "MISSING_CUSTOMER_FIELDS");

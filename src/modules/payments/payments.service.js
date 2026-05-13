@@ -2,6 +2,7 @@ import { createCrudService } from "../../common/crud.js";
 import { badRequest, notFound } from "../../common/errors.js";
 import { env } from "../../configs/env.js";
 import { bookingsRepository } from "../bookings/bookings.repository.js";
+import { mailService } from "../notifications/mail.service.js";
 import { paymentsModel } from "./payments.model.js";
 import { paymentsRepository } from "./payments.repository.js";
 import {
@@ -83,6 +84,32 @@ const processVnpayResult = async (query = {}, { allowAlreadyProcessed = false } 
     paymentStatus: nextPaymentStatus,
     bookingStatus: nextBookingStatus,
   });
+
+  if (nextPaymentStatus === "PAID") {
+    try {
+      const bookingContext = await bookingsRepository.getBookingEmailContext(payment.booking_id);
+      await mailService.sendPaymentSuccessEmail({
+        customerEmail: bookingContext?.customer_email,
+        customerName: bookingContext?.customer_name,
+        bookingNumber: bookingContext?.booking_number,
+        hotelName: bookingContext?.hotel_name,
+        roomTypeName: bookingContext?.room_type_name,
+        checkinDate: bookingContext?.checkin_date,
+        checkoutDate: bookingContext?.checkout_date,
+        subtotalAmount: bookingContext?.subtotal_amount,
+        discountAmount: bookingContext?.discount_amount,
+        taxAmount: bookingContext?.tax_amount,
+        serviceChargeAmount: bookingContext?.service_charge_amount,
+        facilities: bookingContext?.facilities,
+        amount: bookingContext?.final_amount ?? payment.amount,
+        currency: bookingContext?.currency || "VND",
+        paymentMethod: payment.payment_method,
+        transactionId: payment.transaction_id,
+      });
+    } catch (error) {
+      console.warn("Payment success email failed:", error.message);
+    }
+  }
 
   if (nextPaymentStatus !== "PAID") {
     await bookingsRepository.restoreInventoryForBooking(payment.booking_id);

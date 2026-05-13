@@ -8,7 +8,7 @@ router.get("/history/me", authenticate, bookingsController.myHistory);
 router.get("/history/admin", authenticate, authorize("admin"), bookingsController.adminHistory);
 router.get("/", bookingsController.list);
 router.get("/:id", bookingsController.getById);
-router.post("/", bookingsController.create);
+router.post("/", authenticate, bookingsController.create);
 router.patch("/:id", bookingsController.update);
 router.delete("/:id", bookingsController.remove);
 
