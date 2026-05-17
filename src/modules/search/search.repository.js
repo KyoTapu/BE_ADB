@@ -120,7 +120,7 @@ export const searchRepository = {
         LEFT JOIN public.amenities a ON a.id = rta.amenity_id
         LEFT JOIN public.room_type_facilities rtf ON rtf.room_type_id = rt.id
         LEFT JOIN public.facilities f ON f.id = rtf.facility_id AND f.is_active = true
-        WHERE h.status = 'active'
+        WHERE LOWER(COALESCE(h.status, '')) = 'active'
         GROUP BY
           h.id,
           h.name,

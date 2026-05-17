@@ -39,7 +39,12 @@ export const bookingsRepository = {
 
     if (queryParams.customer_email) {
       values.push(String(queryParams.customer_email).trim().toLowerCase());
-      filters.push(`LOWER(c.email) = $${values.length}`);
+      filters.push(`EXISTS (
+        SELECT 1
+        FROM public.customers c
+        WHERE c.id = b.customer_id
+          AND LOWER(c.email) = $${values.length}
+      )`);
     }
 
     if (queryParams.booking_status) {
@@ -54,63 +59,86 @@ export const bookingsRepository = {
 
     if (q) {
       values.push(`%${q}%`);
-      filters.push(`(b.booking_number ILIKE $${values.length} OR rt.name ILIKE $${values.length} OR h.name ILIKE $${values.length})`);
+      filters.push(`(
+        b.booking_number ILIKE $${values.length}
+        OR EXISTS (
+          SELECT 1
+          FROM public.hotels h
+          WHERE h.id = b.hotel_id
+            AND h.name ILIKE $${values.length}
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM public.booking_items bi
+          JOIN public.room_types rt ON rt.id = bi.room_type_id
+          WHERE bi.booking_id = b.id
+            AND rt.name ILIKE $${values.length}
+        )
+      )`);
     }
 
     const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
 
-    const sql = `
+    const countSql = `
+      SELECT COUNT(*)::int AS total
+      FROM public.bookings b
+      ${whereClause}
+    `;
+
+    const pageSql = `
+      WITH paged_bookings AS (
+        SELECT b.id
+        FROM public.bookings b
+        ${whereClause}
+        ORDER BY b.created_at DESC
+        LIMIT $${values.length + 1}
+        OFFSET $${values.length + 2}
+      )
       SELECT
         b.*,
         h.name AS hotel_name,
         h.city AS hotel_city,
-        rt.name AS room_type_name,
+        rt_first.name AS room_type_name,
         c.first_name,
         c.last_name,
         c.email AS customer_email,
         c.phone AS customer_phone,
-        COALESCE(
-          json_agg(
-            DISTINCT jsonb_build_object(
-              'id', f.id,
-              'name', f.name,
-              'price', bf.total_price,
-              'quantity', bf.quantity
-            )
-          ) FILTER (WHERE f.id IS NOT NULL),
-          '[]'::json
-        ) AS facilities
-      FROM public.bookings b
+        COALESCE(facilities.items, '[]'::json) AS facilities
+      FROM paged_bookings pb
+      JOIN public.bookings b ON b.id = pb.id
       LEFT JOIN public.hotels h ON h.id = b.hotel_id
       LEFT JOIN public.customers c ON c.id = b.customer_id
-      LEFT JOIN public.booking_items bi ON bi.booking_id = b.id
-      LEFT JOIN public.room_types rt ON rt.id = bi.room_type_id
-      LEFT JOIN public.booking_facilities bf ON bf.booking_id = b.id
-      LEFT JOIN public.facilities f ON f.id = bf.facility_id
-      ${whereClause}
-      GROUP BY b.id, h.name, h.city, rt.name, c.first_name, c.last_name, c.email, c.phone
+      LEFT JOIN LATERAL (
+        SELECT rt.name
+        FROM public.booking_items bi
+        JOIN public.room_types rt ON rt.id = bi.room_type_id
+        WHERE bi.booking_id = b.id
+        ORDER BY bi.id
+        LIMIT 1
+      ) rt_first ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT json_agg(
+          jsonb_build_object(
+            'id', f.id,
+            'name', f.name,
+            'price', bf.total_price,
+            'quantity', bf.quantity
+          )
+        ) FILTER (WHERE f.id IS NOT NULL) AS items
+        FROM public.booking_facilities bf
+        LEFT JOIN public.facilities f ON f.id = bf.facility_id
+        WHERE bf.booking_id = b.id
+      ) facilities ON TRUE
       ORDER BY b.created_at DESC
-      LIMIT $${values.length + 1}
-      OFFSET $${values.length + 2}
     `;
 
-    const countSql = `
-      SELECT COUNT(DISTINCT b.id)::int AS total
-      FROM public.bookings b
-      LEFT JOIN public.hotels h ON h.id = b.hotel_id
-      LEFT JOIN public.customers c ON c.id = b.customer_id
-      LEFT JOIN public.booking_items bi ON bi.booking_id = b.id
-      LEFT JOIN public.room_types rt ON rt.id = bi.room_type_id
-      ${whereClause}
-    `;
-
-    const [{ rows }, countResult] = await Promise.all([
-      query(sql, [...values, pagination.limit, pagination.offset]),
+    const [pageResult, countResult] = await Promise.all([
+      query(pageSql, [...values, pagination.limit, pagination.offset]),
       query(countSql, values),
     ]);
 
     return {
-      items: rows,
+      items: pageResult.rows,
       pagination: {
         ...pagination,
         total: countResult.rows[0]?.total || 0,
