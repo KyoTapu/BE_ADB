@@ -13,6 +13,7 @@ import { searchRoute } from "./search/search.routes.js";
 import { pricingRoute } from "./pricing/pricing.routes.js";
 import { pricingRulesRoute } from "./pricing-rules/pricing-rules.routes.js";
 import { bookingRoutes } from "./bookings/bookings.routes.js";
+import { receptionistRoute } from "./receptionist/receptionist.routes.js";
 
 export const modules = [
   ...authRoutes,
@@ -29,5 +30,6 @@ export const modules = [
   searchRoute,
   pricingRoute,
   pricingRulesRoute,
+  receptionistRoute,
   ...bookingRoutes,
 ];

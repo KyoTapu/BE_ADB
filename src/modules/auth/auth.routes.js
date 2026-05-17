@@ -10,8 +10,26 @@ authRouter.get("/me", authenticate, authController.me);
 
 const adminAuthRouter = Router();
 adminAuthRouter.post("/login", authController.adminLogin);
+adminAuthRouter.get("/users", authenticate, authorize("admin"), authController.listUsers);
 adminAuthRouter.post("/set-admin", authenticate, authorize("admin"), authController.setAdmin);
 adminAuthRouter.post("/remove-admin", authenticate, authorize("admin"), authController.removeAdmin);
+adminAuthRouter.post("/set-receptionist", authenticate, authorize("admin"), authController.setReceptionist);
+adminAuthRouter.post(
+  "/set-receptionist-hotel",
+  authenticate,
+  authorize("admin"),
+  authController.setReceptionistHotel,
+);
+adminAuthRouter.post(
+  "/remove-receptionist",
+  authenticate,
+  authorize("admin"),
+  authController.removeReceptionist,
+);
+
+const receptionistAuthRouter = Router();
+receptionistAuthRouter.post("/login", authController.receptionistLogin);
+receptionistAuthRouter.get("/me", authenticate, authorize("receptionist"), authController.me);
 
 export const authRoutes = [
   {
@@ -28,5 +46,15 @@ export const authRoutes = [
     moduleName: "legacy-admin-auth",
     routePath: "/api/admin/auth",
     router: adminAuthRouter,
+  },
+  {
+    moduleName: "receptionist-auth",
+    routePath: "/api/receptionist/auth",
+    router: receptionistAuthRouter,
+  },
+  {
+    moduleName: "receptionist-auth-short",
+    routePath: "/receptionist",
+    router: receptionistAuthRouter,
   },
 ];

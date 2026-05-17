@@ -26,6 +26,148 @@ const buildWhereClause = (queryParams = {}, filterableFields = []) => {
 };
 
 export const bookingsRepository = {
+  async getBookingByIdAndHotel(bookingId, hotelId) {
+    const { rows } = await query(
+      `
+        SELECT
+          b.*,
+          h.name AS hotel_name,
+          c.first_name,
+          c.last_name,
+          c.email AS customer_email
+        FROM public.bookings b
+        LEFT JOIN public.hotels h ON h.id = b.hotel_id
+        LEFT JOIN public.customers c ON c.id = b.customer_id
+        WHERE b.id = $1::uuid
+          AND b.hotel_id = $2::uuid
+        LIMIT 1
+      `,
+      [bookingId, hotelId],
+    );
+
+    return rows[0] || null;
+  },
+
+  async getBookingByNumberAndHotel(bookingNumber, hotelId) {
+    const { rows } = await query(
+      `
+        SELECT
+          b.*,
+          h.name AS hotel_name,
+          c.first_name,
+          c.last_name,
+          c.email AS customer_email
+        FROM public.bookings b
+        LEFT JOIN public.hotels h ON h.id = b.hotel_id
+        LEFT JOIN public.customers c ON c.id = b.customer_id
+        WHERE b.booking_number = $1
+          AND b.hotel_id = $2::uuid
+        LIMIT 1
+      `,
+      [bookingNumber, hotelId],
+    );
+
+    return rows[0] || null;
+  },
+
+  async getHotelRoomBoardByDate({ hotelId, date }) {
+    const { rows } = await query(
+      `
+        WITH occupied AS (
+          SELECT
+            bi.room_type_id,
+            COUNT(*)::int AS occupied_count
+          FROM public.bookings b
+          JOIN public.booking_items bi ON bi.booking_id = b.id
+          WHERE b.hotel_id = $1::uuid
+            AND b.checkin_date <= $2::date
+            AND b.checkout_date > $2::date
+            AND UPPER(COALESCE(b.booking_status, '')) NOT IN ('CANCELLED', 'CHECKED_OUT')
+          GROUP BY bi.room_type_id
+        )
+        SELECT
+          rt.id::text AS room_type_id,
+          rt.name AS room_type_name,
+          COALESCE(rt.total_inventory, 0)::int AS total_inventory,
+          COALESCE(o.occupied_count, 0)::int AS occupied_count,
+          GREATEST(COALESCE(rt.total_inventory, 0)::int - COALESCE(o.occupied_count, 0)::int, 0)::int AS available_count
+        FROM public.room_types rt
+        LEFT JOIN occupied o ON o.room_type_id = rt.id
+        WHERE rt.hotel_id = $1::uuid
+        ORDER BY rt.name ASC
+      `,
+      [hotelId, date],
+    );
+
+    return rows;
+  },
+
+  async listByHotelAndDate({ hotelId, date, limit = 100, offset = 0 }) {
+    const { rows } = await query(
+      `
+        SELECT
+          b.*,
+          h.name AS hotel_name,
+          rt_first.room_type_id,
+          rt_first.name AS room_type_name,
+          c.first_name,
+          c.last_name,
+          c.email AS customer_email,
+          c.phone AS customer_phone
+        FROM public.bookings b
+        LEFT JOIN public.hotels h ON h.id = b.hotel_id
+        LEFT JOIN public.customers c ON c.id = b.customer_id
+        LEFT JOIN LATERAL (
+          SELECT rt.id::text AS room_type_id, rt.name
+          FROM public.booking_items bi
+          JOIN public.room_types rt ON rt.id = bi.room_type_id
+          WHERE bi.booking_id = b.id
+          ORDER BY bi.id
+          LIMIT 1
+        ) rt_first ON TRUE
+        WHERE b.hotel_id = $1::uuid
+          AND b.checkin_date <= $2::date
+          AND b.checkout_date > $2::date
+        ORDER BY b.checkin_date ASC, b.created_at DESC
+        LIMIT $3
+        OFFSET $4
+      `,
+      [hotelId, date, limit, offset],
+    );
+
+    return rows;
+  },
+
+  async updateBookingStatusByHotel(bookingId, hotelId, bookingStatus) {
+    const { rows } = await query(
+      `
+        UPDATE public.bookings
+        SET booking_status = $1
+        WHERE id = $2::uuid
+          AND hotel_id = $3::uuid
+        RETURNING *
+      `,
+      [bookingStatus, bookingId, hotelId],
+    );
+
+    return rows[0] || null;
+  },
+
+  async updateBookingPaymentStatusByHotel(bookingId, hotelId, paymentStatus) {
+    const { rows } = await query(
+      `
+        UPDATE public.bookings
+        SET payment_status = $1
+        WHERE id = $2::uuid
+          AND hotel_id = $3::uuid
+        RETURNING *
+      `,
+      [paymentStatus, bookingId, hotelId],
+    );
+
+    return rows[0] || null;
+  },
+
   async listHistory(queryParams = {}) {
     const pagination = getPagination(queryParams);
     const filters = [];

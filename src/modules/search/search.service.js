@@ -6,7 +6,7 @@ import { buildSearchCacheKey as buildSearchHashKey } from "./search.model.js";
 import { searchRepository } from "./search.repository.js";
 
 const normalizeTextFilter = (value) => String(value || "").trim();
-const isActiveFilter = (value) => value && value !== "Tất cả";
+const isActiveFilter = (value) => value && value !== "All";
 
 const buildElasticsearchQuery = (payload) => {
   const keyword = normalizeTextFilter(payload.search);
@@ -254,3 +254,4 @@ export const searchService = {
     return response;
   },
 };
+

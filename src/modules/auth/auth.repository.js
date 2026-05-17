@@ -28,7 +28,44 @@ const ensureRoleTable = async () => {
   `);
 };
 
+const ensureUserHotelAssignmentsTable = async () => {
+  await ensureRoleTable();
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS public.user_hotel_assignments (
+      user_id uuid PRIMARY KEY REFERENCES public."user"(user_id) ON DELETE CASCADE,
+      hotel_id uuid NOT NULL REFERENCES public.hotels(id) ON DELETE CASCADE,
+      assigned_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+};
+
 export const authRepository = {
+  async listUsers() {
+    await ensureUserHotelAssignmentsTable();
+
+    const { rows } = await query(
+      `
+        SELECT
+          u.user_id::text AS id,
+          u.full_name,
+          u.email,
+          u.phone,
+          u.is_active,
+          u.is_banned,
+          u.created_at,
+          COALESCE(ur.role, 'client') AS role,
+          uha.hotel_id::text AS assigned_hotel_id
+        FROM public."user" u
+        LEFT JOIN public.user_roles ur ON ur.user_id = u.user_id
+        LEFT JOIN public.user_hotel_assignments uha ON uha.user_id = u.user_id
+        ORDER BY u.created_at DESC
+      `,
+    );
+
+    return rows;
+  },
+
   async getStatus() {
     const { rows } = await query(`
       SELECT
@@ -52,7 +89,7 @@ export const authRepository = {
   },
 
   async findUserByEmail(email) {
-    await ensureRoleTable();
+    await ensureUserHotelAssignmentsTable();
 
     const { rows } = await query(
       `
@@ -65,9 +102,11 @@ export const authRepository = {
           u.is_active,
           u.is_banned,
           u.created_at,
-          COALESCE(ur.role, 'client') AS role
+          COALESCE(ur.role, 'client') AS role,
+          uha.hotel_id::text AS assigned_hotel_id
         FROM public."user" u
         LEFT JOIN public.user_roles ur ON ur.user_id = u.user_id
+        LEFT JOIN public.user_hotel_assignments uha ON uha.user_id = u.user_id
         WHERE LOWER(u.email) = LOWER($1)
         LIMIT 1
       `,
@@ -78,7 +117,7 @@ export const authRepository = {
   },
 
   async findUserById(userId) {
-    await ensureRoleTable();
+    await ensureUserHotelAssignmentsTable();
 
     const { rows } = await query(
       `
@@ -90,9 +129,11 @@ export const authRepository = {
           u.is_active,
           u.is_banned,
           u.created_at,
-          COALESCE(ur.role, 'client') AS role
+          COALESCE(ur.role, 'client') AS role,
+          uha.hotel_id::text AS assigned_hotel_id
         FROM public."user" u
         LEFT JOIN public.user_roles ur ON ur.user_id = u.user_id
+        LEFT JOIN public.user_hotel_assignments uha ON uha.user_id = u.user_id
         WHERE u.user_id::text = $1
         LIMIT 1
       `,
@@ -103,7 +144,7 @@ export const authRepository = {
   },
 
   async createUser({ fullName, email, phone, passwordHash }) {
-    await ensureRoleTable();
+    await ensureUserHotelAssignmentsTable();
 
     const userId = randomUUID();
     const { rows } = await query(
@@ -129,7 +170,7 @@ export const authRepository = {
   },
 
   async setUserRole(userId, role) {
-    await ensureRoleTable();
+    await ensureUserHotelAssignmentsTable();
 
     const existingUser = await this.findUserById(userId);
     if (!existingUser) {
@@ -144,6 +185,41 @@ export const authRepository = {
         DO UPDATE SET role = EXCLUDED.role, updated_at = CURRENT_TIMESTAMP
       `,
       [userId, role],
+    );
+
+    return this.findUserById(userId);
+  },
+
+  async setUserHotelAssignment(userId, hotelId) {
+    await ensureUserHotelAssignmentsTable();
+
+    const existingUser = await this.findUserById(userId);
+    if (!existingUser) {
+      return null;
+    }
+
+    await query(
+      `
+        INSERT INTO public.user_hotel_assignments (user_id, hotel_id, assigned_at)
+        VALUES ($1::uuid, $2::uuid, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id)
+        DO UPDATE SET hotel_id = EXCLUDED.hotel_id, assigned_at = CURRENT_TIMESTAMP
+      `,
+      [userId, hotelId],
+    );
+
+    return this.findUserById(userId);
+  },
+
+  async removeUserHotelAssignment(userId) {
+    await ensureUserHotelAssignmentsTable();
+
+    await query(
+      `
+        DELETE FROM public.user_hotel_assignments
+        WHERE user_id = $1::uuid
+      `,
+      [userId],
     );
 
     return this.findUserById(userId);

@@ -4,6 +4,11 @@ import { toAuthUser, toLoginResponse } from "./auth.model.js";
 import { authRepository } from "./auth.repository.js";
 
 export const authService = {
+  async listUsers() {
+    const users = await authRepository.listUsers();
+    return users.map((user) => toAuthUser(user));
+  },
+
   async getStatus() {
     return authRepository.getStatus();
   },
@@ -65,6 +70,10 @@ export const authService = {
       throw forbidden("Role is not allowed for this endpoint", "ROLE_NOT_ALLOWED");
     }
 
+    if (expectedRole === "receptionist" && !user.assigned_hotel_id) {
+      throw forbidden("Receptionist account is not assigned to any hotel", "RECEPTIONIST_HOTEL_NOT_ASSIGNED");
+    }
+
     return toLoginResponse(user);
   },
 
@@ -78,11 +87,52 @@ export const authService = {
   },
 
   async setRole(userId, role) {
+    if (!["client", "admin", "receptionist"].includes(String(role || ""))) {
+      throw badRequest("Invalid role", "INVALID_ROLE");
+    }
+
     const updatedUser = await authRepository.setUserRole(userId, role);
     if (!updatedUser) {
       throw notFound("User not found", "USER_NOT_FOUND");
     }
 
     return toAuthUser(updatedUser);
+  },
+
+  async setReceptionistHotel(userId, hotelId) {
+    const normalizedUserId = String(userId || "").trim();
+    const normalizedHotelId = String(hotelId || "").trim();
+
+    if (!normalizedUserId || !normalizedHotelId) {
+      throw badRequest("userId and hotelId are required", "MISSING_ASSIGNMENT_FIELDS");
+    }
+
+    const user = await authRepository.findUserById(normalizedUserId);
+    if (!user) {
+      throw notFound("User not found", "USER_NOT_FOUND");
+    }
+
+    if (String(user.role || "") !== "receptionist") {
+      throw badRequest("User must have receptionist role before assignment", "ROLE_MUST_BE_RECEPTIONIST");
+    }
+
+    const updatedUser = await authRepository.setUserHotelAssignment(normalizedUserId, normalizedHotelId);
+    return toAuthUser(updatedUser);
+  },
+
+  async removeReceptionist(userId) {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) {
+      throw badRequest("userId is required", "MISSING_USER_ID");
+    }
+
+    const user = await authRepository.findUserById(normalizedUserId);
+    if (!user) {
+      throw notFound("User not found", "USER_NOT_FOUND");
+    }
+
+    await authRepository.removeUserHotelAssignment(normalizedUserId);
+    const updated = await authRepository.setUserRole(normalizedUserId, "client");
+    return toAuthUser(updated);
   },
 };
