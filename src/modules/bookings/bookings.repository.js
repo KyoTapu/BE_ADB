@@ -82,7 +82,7 @@ export const bookingsRepository = {
           WHERE b.hotel_id = $1::uuid
             AND b.checkin_date <= $2::date
             AND b.checkout_date > $2::date
-            AND UPPER(COALESCE(b.booking_status, '')) NOT IN ('CANCELLED', 'CHECKED_OUT')
+            AND UPPER(COALESCE(b.booking_status, '')) NOT IN ('CANCELLED', 'CHECKED_OUT', 'NO_SHOW')
           GROUP BY bi.room_type_id
         )
         SELECT
@@ -128,6 +128,7 @@ export const bookingsRepository = {
         WHERE b.hotel_id = $1::uuid
           AND b.checkin_date <= $2::date
           AND b.checkout_date > $2::date
+          AND UPPER(COALESCE(b.booking_status, '')) NOT IN ('CANCELLED', 'CHECKED_OUT', 'NO_SHOW')
         ORDER BY b.checkin_date ASC, b.created_at DESC
         LIMIT $3
         OFFSET $4

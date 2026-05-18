@@ -4,7 +4,9 @@ import { roomTypesRoute } from "./room-types/room-types.routes.js";
 import { roomsRoute } from "./rooms/rooms.routes.js";
 import { amenitiesRoute } from "./amenities/amenities.routes.js";
 import { facilitiesRoute } from "./facilities/facilities.routes.js";
+import { hotelImagesRoute } from "./hotel-images/hotel-images.routes.js";
 import { ratePlansRoute } from "./rate-plans/rate-plans.routes.js";
+import { roomTypeImagesRoute } from "./room-type-images/room-type-images.routes.js";
 import { dailyInventoryRoute } from "./daily-inventory/daily-inventory.routes.js";
 import { dailyRatesRoute } from "./daily-rates/daily-rates.routes.js";
 import { promotionsRoute } from "./promotions/promotions.routes.js";
@@ -22,7 +24,9 @@ export const modules = [
   roomsRoute,
   amenitiesRoute,
   facilitiesRoute,
+  hotelImagesRoute,
   ratePlansRoute,
+  roomTypeImagesRoute,
   dailyInventoryRoute,
   dailyRatesRoute,
   promotionsRoute,
